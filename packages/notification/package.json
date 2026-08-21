@@ -12,6 +12,7 @@
     "@kairon/shared-kernel": "*",
     "@kairon/event-contracts": "*",
     "@kairon/api-contracts": "*",
+    "@kairon/logger": "*",
     "express": "^4.19.2"
   }
 }
