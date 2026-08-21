@@ -3,7 +3,9 @@ import {
   asAssetId,
   asAssetOwnerId,
   asBusinessServiceId,
+  AssetId,
   fail,
+  NotFoundError,
   ok,
   Result,
   TenantContext,
@@ -135,6 +137,22 @@ export class ImportAssetsFromCsvUseCaseImpl implements ImportAssetsFromCsvUseCas
   }
 }
 
+export interface GetAssetByIdUseCase {
+  execute(ctx: TenantContext, assetId: AssetId): Promise<Result<Asset>>;
+}
+
+export class GetAssetByIdUseCaseImpl implements GetAssetByIdUseCase {
+  constructor(private readonly deps: Dependencies) {}
+
+  async execute(ctx: TenantContext, assetId: AssetId): Promise<Result<Asset>> {
+    const asset = await this.deps.assetRepository.findById(ctx, assetId);
+    if (!asset) {
+      return fail(new NotFoundError("Asset", assetId));
+    }
+    return ok(asset);
+  }
+}
+
 export class ListAssetsUseCaseImpl implements ListAssetsUseCase {
   constructor(private readonly deps: Dependencies) {}
 
@@ -156,6 +174,7 @@ export function createAssetModule(deps: Dependencies) {
     createAsset: new CreateAssetUseCaseImpl(deps),
     importAssetsFromCsv: new ImportAssetsFromCsvUseCaseImpl(deps),
     listAssets: new ListAssetsUseCaseImpl(deps),
+    getAssetById: new GetAssetByIdUseCaseImpl(deps),
   };
 }
 

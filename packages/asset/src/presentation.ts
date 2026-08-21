@@ -1,5 +1,5 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
-import type { TenantContext } from "@kairon/shared-kernel";
+import type { AssetId, TenantContext } from "@kairon/shared-kernel";
 import { createAssetSchema, listAssetsQuerySchema, apiSuccess } from "@kairon/api-contracts";
 import type { AssetModule } from "./application";
 
@@ -29,6 +29,16 @@ export function createAssetRouter(module: AssetModule): Router {
     try {
       const query = listAssetsQuerySchema.parse(req.query);
       const result = await module.listAssets.execute(tenantContextOf(req), query);
+      if (!result.isSuccess) return next(result.error);
+      res.status(200).json(apiSuccess(result.value, "OK"));
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.get("/assets/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const result = await module.getAssetById.execute(tenantContextOf(req), req.params.id as AssetId);
       if (!result.isSuccess) return next(result.error);
       res.status(200).json(apiSuccess(result.value, "OK"));
     } catch (err) {
