@@ -8,6 +8,16 @@ import { formatCompactINR } from "../lib/format";
 import type { OptimizationJob } from "../types/api";
 import "./optimization-page.css";
 
+/**
+ * crypto.randomUUID() only exists in secure contexts (HTTPS or localhost) —
+ * this deployment is plain HTTP on an IP, so it's undefined there and throws
+ * on call. These ids are just React keys for draft portfolio rows (never
+ * validated as UUIDs anywhere they're sent), so Math.random() is sufficient.
+ */
+function randomId(): string {
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
 interface DraftAction {
   actionId: string;
   label: string;
@@ -27,7 +37,7 @@ const STARTER: Omit<DraftAction, "actionId">[] = [
 
 export function OptimizationPage() {
   const [actions, setActions] = useState<DraftAction[]>(() =>
-    STARTER.map((a) => ({ ...a, actionId: crypto.randomUUID() }))
+    STARTER.map((a) => ({ ...a, actionId: randomId() }))
   );
   const [label, setLabel] = useState("");
   const [cost, setCost] = useState(500000);
@@ -47,7 +57,7 @@ export function OptimizationPage() {
     if (!label.trim()) return;
     setActions((prev) => [
       ...prev,
-      { actionId: crypto.randomUUID(), label: label.trim(), cost, riskReductionPercent, mandatory: false },
+      { actionId: randomId(), label: label.trim(), cost, riskReductionPercent, mandatory: false },
     ]);
     setLabel("");
   }
