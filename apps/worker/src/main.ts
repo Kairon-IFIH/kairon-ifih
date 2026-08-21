@@ -1,7 +1,7 @@
 import { Worker } from "bullmq";
 import { ALL_QUEUES, type AnyDomainEventEnvelope } from "@kairon/event-contracts";
 import { createAuditModule, PrismaAuditEventRepository } from "@kairon/audit";
-import { createNotificationModule, PrismaNotificationRepository } from "@kairon/notification";
+import { createNotificationModule, PrismaNotificationRepository, type RecipientResolver } from "@kairon/notification";
 import { createLogger } from "@kairon/logger";
 
 const log = createLogger("worker");
@@ -28,8 +28,16 @@ function createWorkers() {
     auditEventRepository: new PrismaAuditEventRepository(prismaClient),
   });
 
+  // This process has no per-request "who's asking" context (it's a pure
+  // background consumer), so it can't yet resolve a real recipient without a
+  // hydrated UserRepository lookup by tenant-admin role — that lands with the
+  // Phase 2 Prisma wiring alongside PrismaUserRepository. Until then this
+  // returns null, and NotifyOnDomainEventUseCaseImpl already treats "no
+  // recipient" as a logged no-op, not a crash.
+  const recipientResolver: RecipientResolver = { resolve: () => null };
   const notification = createNotificationModule({
     notificationRepository: new PrismaNotificationRepository(prismaClient),
+    recipientResolver,
   });
 
   const workers = ALL_QUEUES.map((queueName) => {

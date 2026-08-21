@@ -15,8 +15,12 @@ import { createAssetModule, createAssetRouter, InMemoryAssetRepository } from "@
 import {
   createComplianceModule,
   createComplianceRouter,
-  PrismaFrameworkRepository,
-  PrismaComplianceMappingRepository,
+  InMemoryFrameworkRepository,
+  InMemoryRegulationRepository,
+  InMemoryControlRepository,
+  InMemoryComplianceMappingRepository,
+  RegulatoryTraceabilityServiceImpl,
+  seedComplianceReferenceData,
 } from "@kairon/compliance";
 import { createRiskModule, createRiskRouter, InMemoryRiskRepository, RiskScoringServiceImpl } from "@kairon/risk";
 import {
@@ -32,7 +36,13 @@ import {
   GreedyClassicalSolverGateway,
 } from "@kairon/quantum";
 import { createAuditModule, createAuditRouter, InMemoryAuditEventRepository } from "@kairon/audit";
-import { createNotificationModule, createNotificationRouter, PrismaNotificationRepository } from "@kairon/notification";
+import {
+  createNotificationModule,
+  createNotificationRouter,
+  InMemoryNotificationRepository,
+  type RecipientResolver,
+} from "@kairon/notification";
+import { asUserId } from "@kairon/shared-kernel";
 
 import { createLogger } from "@kairon/logger";
 
@@ -48,14 +58,12 @@ const log = createLogger("bootstrap");
  * about every bounded context at once. Everything above (domain/application
  * layers) stays ignorant of Express, Prisma, and each other.
  *
- * Persistence is in-memory for the 6 MVP-critical contexts (identity, asset,
- * risk, financial, quantum, audit) — the real Phase-2 swap is dropping in the
- * PrismaX* classes that already sit next to each InMemoryX* class; nothing
- * above this file changes when that happens. Compliance/Notification stay on
- * their Prisma stubs since they're explicitly Phase 2/optional-for-MVP scope.
+ * Persistence is in-memory across every context — the real Phase-2 swap is
+ * dropping in the PrismaX* classes that already sit next to each InMemoryX*
+ * class in every package's infrastructure.ts; nothing above this file changes
+ * when that happens.
  */
 async function createApp() {
-  const prismaClient: unknown = undefined;
   const eventPublisher = new InMemoryEventPublisher();
 
   const tenantRepository = new InMemoryTenantRepository();
@@ -66,12 +74,23 @@ async function createApp() {
   const assetRepository = new InMemoryAssetRepository();
   const asset = createAssetModule({ assetRepository, eventPublisher });
 
-  const complianceMappingRepository = new PrismaComplianceMappingRepository(prismaClient);
+  const frameworkRepository = new InMemoryFrameworkRepository();
+  const regulationRepository = new InMemoryRegulationRepository();
+  const controlRepository = new InMemoryControlRepository();
+  const complianceMappingRepository = new InMemoryComplianceMappingRepository();
+  await seedComplianceReferenceData({ frameworkRepository, regulationRepository, controlRepository });
   const compliance = createComplianceModule({
-    frameworkRepository: new PrismaFrameworkRepository(prismaClient),
+    frameworkRepository,
+    regulationRepository,
+    controlRepository,
     complianceMappingRepository,
-    // Phase 4: swap for the real RegulatoryTraceabilityService implementation.
-    traceabilityService: { traceAssetToRegulation: async () => [] },
+    traceabilityService: new RegulatoryTraceabilityServiceImpl({
+      frameworkRepository,
+      regulationRepository,
+      controlRepository,
+      complianceMappingRepository,
+    }),
+    eventPublisher,
   });
 
   const riskRepository = new InMemoryRiskRepository();
@@ -104,10 +123,6 @@ async function createApp() {
   // Cross-cutting: every domain event, from every context, reaches Audit (ARCHITECTURE.md §8).
   eventPublisher.subscribe("*", (envelope) => audit.recordAuditEvent.execute(envelope).then(() => undefined));
 
-  const notification = createNotificationModule({
-    notificationRepository: new PrismaNotificationRepository(prismaClient),
-  });
-
   const seed = await seedDemoTenant({ tenantRepository, userRepository, roleRepository });
   log.info("demo tenant seeded", { tenantId: seed.tenantId, adminEmail: seed.adminEmail });
   // Deliberately NOT via the structured logger (which would redact it, correctly)
@@ -117,6 +132,20 @@ async function createApp() {
     // eslint-disable-next-line no-console
     console.log(`Demo login: ${seed.adminEmail} / ${seed.adminPassword}`);
   }
+
+  // MVP: single-recipient resolver (the seeded tenant admin). A real
+  // subscription/preference model is Phase 6 — see @kairon/notification's
+  // RecipientResolver doc comment for why this seam exists.
+  const recipientResolver: RecipientResolver = {
+    resolve: () => asUserId(seed.adminUserId),
+  };
+  const notification = createNotificationModule({
+    notificationRepository: new InMemoryNotificationRepository(),
+    recipientResolver,
+  });
+  eventPublisher.subscribe("OptimizationExecuted", (envelope) =>
+    notification.notifyOnDomainEvent.execute(envelope).then(() => undefined)
+  );
 
   const app = express();
   app.use(helmet());
