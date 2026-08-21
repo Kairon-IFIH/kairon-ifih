@@ -1,7 +1,10 @@
 import { asTenantId, asUserId, fail, ok, Result, UnauthorizedError } from "@kairon/shared-kernel";
 import type { LoginRequest, RefreshTokenRequest } from "@kairon/api-contracts";
+import { createLogger } from "@kairon/logger";
 import type { Permission, PermissionCheckerService, RoleRepository, TenantRepository, User, UserRepository } from "./domain";
-import { signAccessToken, signRefreshToken, verifyRefreshToken } from "./jwt";
+import { rotateRefreshToken, signAccessToken, signRefreshToken } from "./jwt";
+
+const log = createLogger("auth");
 
 export interface AuthTokens {
   accessToken: string;
@@ -22,24 +25,18 @@ export interface Dependencies {
   roleRepository: RoleRepository;
 }
 
-async function issueTokensForUser(
-  deps: Pick<Dependencies, "roleRepository">,
-  user: User
-): Promise<AuthTokens> {
+async function issueAccessToken(deps: Pick<Dependencies, "roleRepository">, user: User): Promise<string> {
   const roles = await Promise.all(
     user.roleIds.map((roleId) => deps.roleRepository.findById(user.tenantId, roleId))
   );
   const roleNames = roles.filter((r): r is NonNullable<typeof r> => r !== null).map((r) => r.name);
 
-  return {
-    accessToken: signAccessToken({
-      sub: user.id,
-      tenantId: user.tenantId,
-      organizationId: user.organizationId,
-      roles: roleNames,
-    }),
-    refreshToken: signRefreshToken({ sub: user.id, tenantId: user.tenantId }),
-  };
+  return signAccessToken({
+    sub: user.id,
+    tenantId: user.tenantId,
+    organizationId: user.organizationId,
+    roles: roleNames,
+  });
 }
 
 export class LoginUseCaseImpl implements LoginUseCase {
@@ -48,10 +45,15 @@ export class LoginUseCaseImpl implements LoginUseCase {
   async execute(request: LoginRequest): Promise<Result<AuthTokens>> {
     const user = await this.deps.userRepository.findByEmail(request.email);
     if (!user || !user.verifyPassword(request.password)) {
+      log.warn("login failed", { email: request.email });
       return fail(new UnauthorizedError());
     }
-    const tokens = await issueTokensForUser(this.deps, user);
-    return ok(tokens);
+
+    const accessToken = await issueAccessToken(this.deps, user);
+    const refreshToken = signRefreshToken(user.id, user.tenantId);
+    log.info("login succeeded", { userId: user.id, tenantId: user.tenantId });
+
+    return ok({ accessToken, refreshToken });
   }
 }
 
@@ -59,15 +61,18 @@ export class RefreshTokenUseCaseImpl implements RefreshTokenUseCase {
   constructor(private readonly deps: Pick<Dependencies, "userRepository" | "roleRepository">) {}
 
   async execute(request: RefreshTokenRequest): Promise<Result<AuthTokens>> {
-    // NOTE: no persistent revocation/reuse-detection list yet (ARCHITECTURE.md §9
-    // flags this as a required hardening step before production — Phase 2/6).
-    const claims = verifyRefreshToken(request.refreshToken);
+    const { claims, nextToken } = rotateRefreshToken(request.refreshToken);
+
     const user = await this.deps.userRepository.findById(asTenantId(claims.tenantId), asUserId(claims.sub));
     if (!user) {
+      log.warn("refresh failed — user no longer exists", { userId: claims.sub });
       return fail(new UnauthorizedError());
     }
-    const tokens = await issueTokensForUser(this.deps, user);
-    return ok(tokens);
+
+    const accessToken = await issueAccessToken(this.deps, user);
+    log.info("token refreshed", { userId: user.id, tenantId: user.tenantId });
+
+    return ok({ accessToken, refreshToken: nextToken });
   }
 }
 
