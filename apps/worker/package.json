@@ -14,6 +14,7 @@
     "@kairon/event-contracts": "*",
     "@kairon/audit": "*",
     "@kairon/notification": "*",
+    "@kairon/logger": "*",
     "bullmq": "^5.7.8"
   }
 }

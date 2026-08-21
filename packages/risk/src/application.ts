@@ -3,7 +3,10 @@ import { asAssetId, asRiskId, AssetId, NotFoundError, ok, Result, TenantContext 
 import type { CalculateRiskRequest, ListRisksQuery, PaginatedResult } from "@kairon/api-contracts";
 import type { EventPublisher } from "@kairon/event-contracts";
 import type { AssetRepository } from "@kairon/asset";
+import { createLogger } from "@kairon/logger";
 import { Impact, Likelihood, Risk, RiskCalculatedEvent, RiskRepository, RiskScore, RiskScoringService } from "./domain";
+
+const log = createLogger("risk");
 
 export interface CalculateRiskForAssetUseCase {
   execute(ctx: TenantContext, request: CalculateRiskRequest): Promise<Result<Risk>>;
@@ -59,6 +62,14 @@ export class CalculateRiskForAssetUseCaseImpl implements CalculateRiskForAssetUs
     });
 
     await this.deps.riskRepository.save(ctx, risk);
+    log.info("risk calculated", {
+      tenantId: ctx.tenantId,
+      assetId,
+      riskId: risk.id,
+      inherentScore: assessment.score.inherentScore,
+      residualScore: assessment.score.residualScore,
+      level: assessment.score.level,
+    });
 
     for (const event of risk.pullDomainEvents()) {
       if (event instanceof RiskCalculatedEvent) {

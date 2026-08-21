@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { asOptimizationJobId, fail, Money, NotFoundError, ok, OptimizationJobId, Result, TenantContext } from "@kairon/shared-kernel";
 import type { CreateOptimizationJobRequest } from "@kairon/api-contracts";
 import type { EventPublisher } from "@kairon/event-contracts";
+import { createLogger } from "@kairon/logger";
 import {
   BudgetConstraint,
   ObjectiveFunction,
@@ -10,6 +11,8 @@ import {
   OptimizationJobRepository,
   QuantumSolverGateway,
 } from "./domain";
+
+const log = createLogger("quantum");
 
 export interface CreateOptimizationJobUseCase {
   execute(ctx: TenantContext, request: CreateOptimizationJobRequest): Promise<Result<{ jobId: string }>>;
@@ -43,6 +46,11 @@ export class CreateOptimizationJobUseCaseImpl implements CreateOptimizationJobUs
     });
 
     await this.deps.optimizationJobRepository.save(ctx, job);
+    log.info("optimization job created", {
+      tenantId: ctx.tenantId,
+      jobId: job.id,
+      candidateCount: job.candidateActions.length,
+    });
 
     job.markRunning();
     await this.deps.optimizationJobRepository.save(ctx, job);
@@ -55,6 +63,13 @@ export class CreateOptimizationJobUseCaseImpl implements CreateOptimizationJobUs
     if (result) {
       job.complete(result);
       await this.deps.optimizationJobRepository.save(ctx, job);
+      log.info("optimization job completed", {
+        tenantId: ctx.tenantId,
+        jobId: job.id,
+        selectedCount: result.selectedActionIds.length,
+        riskReductionPercent: result.riskReductionPercent,
+        totalCost: result.totalCost.amount,
+      });
 
       for (const event of job.pullDomainEvents()) {
         if (event instanceof OptimizationExecutedEvent) {
