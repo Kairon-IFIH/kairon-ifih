@@ -14,6 +14,7 @@
     "baseUrl": ".",
     "paths": {
       "@kairon/shared-kernel": ["packages/shared-kernel/src/index.ts"],
+      "@kairon/logger": ["packages/logger/src/index.ts"],
       "@kairon/event-contracts": ["packages/event-contracts/src/index.ts"],
       "@kairon/api-contracts": ["packages/api-contracts/src/index.ts"],
       "@kairon/identity": ["packages/identity/src/index.ts"],
