@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "lib": ["ES2022"],
+    "strict": true,
+    "declaration": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "baseUrl": ".",
+    "paths": {
+      "@kairon/shared-kernel": ["packages/shared-kernel/src/index.ts"],
+      "@kairon/event-contracts": ["packages/event-contracts/src/index.ts"],
+      "@kairon/api-contracts": ["packages/api-contracts/src/index.ts"],
+      "@kairon/identity": ["packages/identity/src/index.ts"],
+      "@kairon/asset": ["packages/asset/src/index.ts"],
+      "@kairon/compliance": ["packages/compliance/src/index.ts"],
+      "@kairon/risk": ["packages/risk/src/index.ts"],
+      "@kairon/financial": ["packages/financial/src/index.ts"],
+      "@kairon/quantum": ["packages/quantum/src/index.ts"],
+      "@kairon/audit": ["packages/audit/src/index.ts"],
+      "@kairon/notification": ["packages/notification/src/index.ts"]
+    }
+  }
+}
