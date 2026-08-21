@@ -22,3 +22,32 @@ export class PrismaAuditEventRepository implements AuditEventRepository {
     throw new NotImplementedError("PrismaAuditEventRepository.findByDateRange — Phase 2");
   }
 }
+
+/**
+ * In-memory implementation — the actual Phase-"right now" persistence. Still no
+ * update()/delete(): append-only is structural here too, not just in Prisma.
+ */
+export class InMemoryAuditEventRepository implements AuditEventRepository {
+  private readonly byTenant = new Map<string, AuditEvent[]>();
+
+  private tenantStore(tenantId: string): AuditEvent[] {
+    let store = this.byTenant.get(tenantId);
+    if (!store) {
+      store = [];
+      this.byTenant.set(tenantId, store);
+    }
+    return store;
+  }
+
+  async append(event: AuditEvent): Promise<void> {
+    this.tenantStore(event.tenantId).push(event);
+  }
+
+  async findByEntity(ctx: TenantContext, entityType: string, entityId: string): Promise<AuditEvent[]> {
+    return this.tenantStore(ctx.tenantId).filter((e) => e.entityType === entityType && e.entityId === entityId);
+  }
+
+  async findByDateRange(ctx: TenantContext, from: Date, to: Date): Promise<AuditEvent[]> {
+    return this.tenantStore(ctx.tenantId).filter((e) => e.timestamp >= from && e.timestamp <= to);
+  }
+}

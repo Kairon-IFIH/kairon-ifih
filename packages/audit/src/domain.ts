@@ -1,9 +1,10 @@
 import {
   AuditEventId,
   Entity,
-  NotImplementedError,
   TenantContext,
+  TenantId,
   UserId,
+  ValidationError,
   ValueObject,
 } from "@kairon/shared-kernel";
 import type { AnyDomainEventEnvelope } from "@kairon/event-contracts";
@@ -27,8 +28,20 @@ export class ActorRef extends ValueObject<ActorRefProps> {
     super(props);
   }
 
-  static create(_userId: UserId, _displayName: string): ActorRef {
-    throw new NotImplementedError("ActorRef.create — Phase 2");
+  static create(userId: UserId, displayName: string): ActorRef {
+    return new ActorRef({ userId, displayName });
+  }
+
+  static system(): ActorRef {
+    return new ActorRef({ userId: "system" as UserId, displayName: "system" });
+  }
+
+  get userId(): UserId {
+    return this.props.userId;
+  }
+
+  get displayName(): string {
+    return this.props.displayName;
   }
 }
 
@@ -42,14 +55,23 @@ export class BeforeAfterDiff extends ValueObject<BeforeAfterDiffProps> {
     super(props);
   }
 
-  static create(_before: Record<string, unknown>, _after: Record<string, unknown>): BeforeAfterDiff {
-    throw new NotImplementedError("BeforeAfterDiff.create — Phase 2");
+  static create(before: Record<string, unknown>, after: Record<string, unknown>): BeforeAfterDiff {
+    return new BeforeAfterDiff({ before, after });
+  }
+
+  get before(): Record<string, unknown> {
+    return this.props.before;
+  }
+
+  get after(): Record<string, unknown> {
+    return this.props.after;
   }
 }
 
 // ---- Entity (not an AggregateRoot: it raises no further domain events) ----
 
 export interface AuditEventProps {
+  readonly tenantId: TenantId;
   readonly timestamp: Date;
   readonly actor: ActorRef;
   readonly action: string;
@@ -64,8 +86,39 @@ export class AuditEvent extends Entity<AuditEventId> {
   }
 
   /** The ONLY way an AuditEvent comes into existence — matches BACKEND.md's required shape exactly. */
-  static record(_id: AuditEventId, _props: AuditEventProps): AuditEvent {
-    throw new NotImplementedError("AuditEvent.record — Phase 2, BACKEND.md Auditability Requirements");
+  static record(id: AuditEventId, props: AuditEventProps): AuditEvent {
+    if (!props.action.trim() || !props.entityType.trim() || !props.entityId.trim()) {
+      throw new ValidationError(["AuditEvent requires action, entityType and entityId"]);
+    }
+    return new AuditEvent(id, props);
+  }
+
+  get tenantId(): TenantId {
+    return this.props.tenantId;
+  }
+
+  get timestamp(): Date {
+    return this.props.timestamp;
+  }
+
+  get actor(): ActorRef {
+    return this.props.actor;
+  }
+
+  get action(): string {
+    return this.props.action;
+  }
+
+  get entityType(): string {
+    return this.props.entityType;
+  }
+
+  get entityId(): string {
+    return this.props.entityId;
+  }
+
+  get diff(): BeforeAfterDiff {
+    return this.props.diff;
   }
 }
 
