@@ -5,7 +5,6 @@ import {
   BusinessServiceId,
   DomainEvent,
   Entity,
-  NotImplementedError,
   TenantContext,
   TenantId,
   ValidationError,
@@ -113,8 +112,19 @@ export class AssetOwner extends Entity<AssetOwnerId> {
     super(id);
   }
 
-  static create(_id: AssetOwnerId, _props: AssetOwnerProps): AssetOwner {
-    throw new NotImplementedError("AssetOwner.create — Phase 2 enrichment, not required for MVP workflow");
+  static create(id: AssetOwnerId, props: AssetOwnerProps): AssetOwner {
+    if (!props.name.trim() || !props.department.trim()) {
+      throw new ValidationError(["AssetOwner requires a name and department"]);
+    }
+    return new AssetOwner(id, props);
+  }
+
+  get name(): string {
+    return this.props.name;
+  }
+
+  get department(): string {
+    return this.props.department;
   }
 }
 
@@ -127,8 +137,15 @@ export class BusinessService extends Entity<BusinessServiceId> {
     super(id);
   }
 
-  static create(_id: BusinessServiceId, _props: BusinessServiceProps): BusinessService {
-    throw new NotImplementedError("BusinessService.create — Phase 2 enrichment, not required for MVP workflow");
+  static create(id: BusinessServiceId, props: BusinessServiceProps): BusinessService {
+    if (!props.name.trim()) {
+      throw new ValidationError(["BusinessService name cannot be empty"]);
+    }
+    return new BusinessService(id, props);
+  }
+
+  get name(): string {
+    return this.props.name;
   }
 }
 

@@ -4,7 +4,6 @@ import {
   DomainEvent,
   Entity,
   Money,
-  NotImplementedError,
   RiskFactorId,
   RiskId,
   TenantContext,
@@ -120,10 +119,19 @@ export class RiskFactor extends Entity<RiskFactorId> {
     super(id);
   }
 
-  static create(_id: RiskFactorId, _props: RiskFactorProps): RiskFactor {
-    throw new NotImplementedError(
-      "RiskFactor.create — Phase 2 Entity per ARCHITECTURE.md domain-model classification, not required for one composite RiskScore"
-    );
+  static create(id: RiskFactorId, props: RiskFactorProps): RiskFactor {
+    if (!props.name.trim()) {
+      throw new ValidationError(["RiskFactor name cannot be empty"]);
+    }
+    return new RiskFactor(id, props);
+  }
+
+  get name(): string {
+    return this.props.name;
+  }
+
+  get weight(): number {
+    return this.props.weight;
   }
 }
 
