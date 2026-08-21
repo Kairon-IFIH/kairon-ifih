@@ -1,37 +1,84 @@
 .topbar {
-  height: 64px;
   flex-shrink: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  padding: 0 var(--space-8);
-  border-bottom: 1px solid var(--border-hairline);
+  gap: var(--s-6);
+  padding: var(--s-6) var(--s-8) var(--s-5);
+  border-bottom: 1px solid var(--rule);
+  background: var(--plane);
+}
+
+.topbar__heading {
+  min-width: 0;
 }
 
 .topbar__title {
-  font-family: var(--font-ui);
-  font-size: var(--text-lg);
+  font-family: var(--font-display);
+  font-size: var(--t-lg);
   font-weight: 600;
-  color: var(--text-primary);
+  letter-spacing: var(--track-display);
+  color: var(--ink);
+}
+
+.topbar__subtitle {
+  margin-top: var(--s-2);
+  font-size: var(--t-xs);
+  color: var(--ink-muted);
+  max-width: 78ch;
+  line-height: 1.5;
 }
 
 .topbar__actions {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--s-2);
+}
+
+.topbar__tenant {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  margin-right: var(--s-2);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+}
+
+.topbar__tenant-label {
+  font-size: var(--t-micro);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.topbar__tenant-value {
+  font-size: var(--t-micro);
+  color: var(--ink-secondary);
 }
 
 .topbar__logout {
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
-  border-radius: var(--radius-sharp);
-  color: var(--text-secondary);
-  transition: background var(--duration-fast) var(--ease-precision), color var(--duration-fast) var(--ease-precision);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-sm);
+  color: var(--ink-muted);
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 
 .topbar__logout:hover {
-  background: var(--accent-risk-dim);
-  color: var(--accent-risk);
+  background: var(--sev-critical-wash);
+  color: var(--sev-critical);
+}
+
+@media (max-width: 780px) {
+  .topbar {
+    padding-inline: var(--s-5);
+  }
+  .topbar__tenant {
+    display: none;
+  }
 }

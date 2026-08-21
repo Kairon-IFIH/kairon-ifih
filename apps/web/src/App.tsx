@@ -14,10 +14,12 @@ import { OptimizationPage } from "./pages/OptimizationPage";
 import { CompliancePage } from "./pages/CompliancePage";
 import { AuditPage } from "./pages/AuditPage";
 
-function Shell({ title, children }: { title: string; children: ReactNode }) {
+function Shell({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
   return (
     <ProtectedRoute>
-      <AppShell title={title}>{children}</AppShell>
+      <AppShell title={title} subtitle={subtitle}>
+        {children}
+      </AppShell>
     </ProtectedRoute>
   );
 }
@@ -32,7 +34,7 @@ export default function App() {
           <Route
             path="/dashboard"
             element={
-              <Shell title="Dashboard">
+              <Shell title="Dashboard" subtitle="What changed, what is unusual, and what needs a decision — across the whole institution.">
                 <DashboardPage />
               </Shell>
             }
@@ -40,7 +42,7 @@ export default function App() {
           <Route
             path="/assets"
             element={
-              <Shell title="Asset Intelligence">
+              <Shell title="Asset Intelligence" subtitle="The institution's digital surface, grouped by where exposure actually concentrates.">
                 <AssetsPage />
               </Shell>
             }
@@ -48,7 +50,7 @@ export default function App() {
           <Route
             path="/assets/:id"
             element={
-              <Shell title="Asset Intelligence">
+              <Shell title="Asset Intelligence" subtitle="The institution's digital surface, grouped by where exposure actually concentrates.">
                 <AssetDetailPage />
               </Shell>
             }
@@ -56,7 +58,7 @@ export default function App() {
           <Route
             path="/risks"
             element={
-              <Shell title="Risk Engine">
+              <Shell title="Risk Engine" subtitle="Likelihood × impact, discounted by control effectiveness, scored per asset.">
                 <RisksPage />
               </Shell>
             }
@@ -64,7 +66,7 @@ export default function App() {
           <Route
             path="/financial"
             element={
-              <Shell title="Financial Quantification">
+              <Shell title="Financial Quantification" subtitle="Technical exposure translated into currency an executive committee can act on.">
                 <FinancialPage />
               </Shell>
             }
@@ -72,7 +74,7 @@ export default function App() {
           <Route
             path="/optimization"
             element={
-              <Shell title="Quantum Optimization">
+              <Shell title="Quantum Optimization" subtitle="Where the system decides: which remediation portfolio buys the most risk reduction per rupee.">
                 <OptimizationPage />
               </Shell>
             }
@@ -80,7 +82,7 @@ export default function App() {
           <Route
             path="/compliance"
             element={
-              <Shell title="Compliance">
+              <Shell title="Compliance" subtitle="Regulation → clause → control → evidence, traced end to end for every mapped asset.">
                 <CompliancePage />
               </Shell>
             }
@@ -88,7 +90,7 @@ export default function App() {
           <Route
             path="/audit"
             element={
-              <Shell title="Audit Trail">
+              <Shell title="Audit Trail" subtitle="Append-only record of every state change. Nothing mutates it, including this screen.">
                 <AuditPage />
               </Shell>
             }

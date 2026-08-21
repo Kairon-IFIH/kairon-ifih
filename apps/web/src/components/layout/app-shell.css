@@ -1,7 +1,18 @@
+/**
+ * The rail is `position: sticky` and one viewport tall, so on a long page its
+ * own background stops at the fold. Painting the rail column here — as a hard
+ * two-stop gradient with the hairline built in — keeps the column continuous
+ * for the full scroll height without a wrapper element.
+ */
 .app-shell {
   display: flex;
   min-height: 100vh;
-  background: var(--surface-0);
+  background: linear-gradient(
+    to right,
+    var(--surface) 0 216px,
+    var(--rule) 216px 217px,
+    var(--plane) 217px
+  );
 }
 
 .app-shell__main {
@@ -13,6 +24,23 @@
 
 .app-shell__content {
   flex: 1;
-  padding: var(--space-8);
+  padding: var(--s-6) var(--s-8) var(--s-16);
   overflow-x: hidden;
+}
+
+@media (max-width: 900px) {
+  .app-shell {
+    background: linear-gradient(
+      to right,
+      var(--surface) 0 68px,
+      var(--rule) 68px 69px,
+      var(--plane) 69px
+    );
+  }
+}
+
+@media (max-width: 780px) {
+  .app-shell__content {
+    padding: var(--s-5) var(--s-5) var(--s-12);
+  }
 }

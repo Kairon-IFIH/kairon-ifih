@@ -1,34 +1,76 @@
 import { NavLink } from "react-router-dom";
-import { LayoutGrid, Boxes, ShieldAlert, IndianRupee, Atom, FileCheck2, ScrollText } from "lucide-react";
 import "./sidebar.css";
 
-const NAV_ITEMS = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutGrid },
-  { to: "/assets", label: "Assets", icon: Boxes },
-  { to: "/risks", label: "Risks", icon: ShieldAlert },
-  { to: "/financial", label: "Financial", icon: IndianRupee },
-  { to: "/optimization", label: "Optimization", icon: Atom },
-  { to: "/compliance", label: "Compliance", icon: FileCheck2 },
-  { to: "/audit", label: "Audit", icon: ScrollText },
+/**
+ * The rail. Grouped by where each screen sits in the decision chain rather
+ * than as one flat list of features — the navigation itself teaches the
+ * workflow: what exists → what it's worth → what to do → prove it.
+ */
+const GROUPS = [
+  {
+    label: "Overview",
+    items: [{ to: "/dashboard", label: "Command", index: "00" }],
+  },
+  {
+    label: "Surface",
+    items: [{ to: "/assets", label: "Assets", index: "01" }],
+  },
+  {
+    label: "Analysis",
+    items: [
+      { to: "/risks", label: "Risk engine", index: "02" },
+      { to: "/financial", label: "Quantification", index: "03" },
+    ],
+  },
+  {
+    label: "Decision",
+    items: [{ to: "/optimization", label: "Optimizer", index: "04" }],
+  },
+  {
+    label: "Assurance",
+    items: [
+      { to: "/compliance", label: "Regulatory", index: "05" },
+      { to: "/audit", label: "Audit trail", index: "06" },
+    ],
+  },
 ];
 
 export function Sidebar() {
   return (
-    <nav className="sidebar" aria-label="Primary">
-      <div className="sidebar__brand">
-        <span className="sidebar__mark">K</span>
-        <span className="sidebar__wordmark">KAIRON</span>
+    <nav className="rail" aria-label="Primary">
+      <div className="rail__brand">
+        <span className="rail__mark">K</span>
+        <span className="rail__brand-text">
+          <span className="rail__wordmark">KAIRON</span>
+          <span className="rail__tagline">Risk Intelligence</span>
+        </span>
       </div>
-      <ul className="sidebar__list">
-        {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
-          <li key={to}>
-            <NavLink to={to} className={({ isActive }) => "sidebar__link" + (isActive ? " sidebar__link--active" : "")}>
-              <Icon size={17} strokeWidth={1.75} aria-hidden="true" />
-              <span>{label}</span>
-            </NavLink>
-          </li>
+
+      <div className="rail__groups">
+        {GROUPS.map((group) => (
+          <div key={group.label} className="rail__group">
+            <span className="rail__group-label">{group.label}</span>
+            <ul>
+              {group.items.map((item) => (
+                <li key={item.to}>
+                  <NavLink
+                    to={item.to}
+                    className={({ isActive }) => "rail__link" + (isActive ? " rail__link--active" : "")}
+                  >
+                    <span className="rail__index num">{item.index}</span>
+                    <span className="rail__label">{item.label}</span>
+                  </NavLink>
+                </li>
+              ))}
+            </ul>
+          </div>
         ))}
-      </ul>
+      </div>
+
+      <div className="rail__foot">
+        <span className="rail__foot-line">Classical solver active</span>
+        <span className="rail__foot-note">QAOA in development</span>
+      </div>
     </nav>
   );
 }
