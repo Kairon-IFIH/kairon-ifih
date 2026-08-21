@@ -1,179 +1,299 @@
-import { useEffect, useRef, useState } from "react";
-import { gsap } from "gsap";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Cell } from "recharts";
-import { KpiCard } from "../components/KpiCard";
-import { QRiskGauge } from "../components/QRiskGauge";
-import { listAssets, listRisks, getQRisk, listAuditEvents, listNotifications } from "../lib/endpoints";
+import { ExecutiveStrip, Readout, Sparkline } from "../components/ExecutiveStrip";
+import { Panel, Legend, LegendItem, EmptyState } from "../components/Panel";
+import { RiskHealthSpectrum } from "../components/viz/RiskHealthSpectrum";
+import { ExposureRiver } from "../components/viz/ExposureRiver";
+import { RiskConstellation } from "../components/viz/RiskConstellation";
+import { SignalFeed } from "../components/viz/SignalFeed";
+import { IntelligenceBriefing } from "../components/viz/IntelligenceBriefing";
+import {
+  listAssets,
+  listRisks,
+  getQRisk,
+  listAuditEvents,
+  listNotifications,
+  runGapAnalysis,
+} from "../lib/endpoints";
 import { formatCompactINR } from "../lib/format";
-import type { AuditEvent, RiskLevel } from "../types/api";
+import {
+  buildAttentionIndex,
+  buildAssetSurface,
+  buildBriefing,
+  buildExposureRiver,
+  buildSignalFeed,
+} from "../lib/intelligence";
+import type { Asset, AuditEvent, ComplianceMapping, Risk } from "../types/api";
 import "./dashboard-page.css";
 
-const LEVEL_ORDER: RiskLevel[] = ["CRITICAL", "HIGH", "MEDIUM", "LOW"];
-const LEVEL_COLOR: Record<RiskLevel, string> = {
-  CRITICAL: "var(--severity-critical)",
-  HIGH: "var(--severity-high)",
-  MEDIUM: "var(--severity-medium)",
-  LOW: "var(--severity-low)",
-};
-
-interface DashboardData {
-  totalAssets: number;
-  highRiskCount: number;
-  modeledImpact: number;
-  openAlerts: number;
+interface Loaded {
+  assets: Asset[];
+  risks: Risk[];
   qRisk: number;
-  riskDistribution: { level: RiskLevel; count: number }[];
-  recentEvents: AuditEvent[];
-}
-
-function formatAction(action: string): string {
-  return action.replace(/([a-z])([A-Z])/g, "$1 $2");
+  events: AuditEvent[];
+  unread: number;
+  mappings: ComplianceMapping[];
 }
 
 export function DashboardPage() {
-  const [data, setData] = useState<DashboardData | null>(null);
+  const [data, setData] = useState<Loaded | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const kpiRowRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([listAssets(1, 1), listRisks(1, 100), getQRisk(), listAuditEvents(1, 5), listNotifications(true, 1, 1)])
-      .then(([assets, risks, qRisk, audit, unread]) => {
+    Promise.all([
+      listAssets(1, 100),
+      listRisks(1, 100),
+      getQRisk(),
+      listAuditEvents(1, 100),
+      listNotifications(true, 1, 1),
+      runGapAnalysis(1, 100),
+    ])
+      .then(([assets, risks, qRisk, audit, unread, gaps]) => {
         if (cancelled) return;
-        const highRiskCount = risks.items.filter((r) => r.level === "HIGH" || r.level === "CRITICAL").length;
-        const modeledImpact = risks.items.reduce((sum, r) => sum + r.impactAmount, 0);
-        const distribution = LEVEL_ORDER.map((level) => ({
-          level,
-          count: risks.items.filter((r) => r.level === level).length,
-        }));
         setData({
-          totalAssets: assets.total,
-          highRiskCount,
-          modeledImpact,
-          openAlerts: unread.total,
+          assets: assets.items,
+          risks: risks.items,
           qRisk: qRisk.qRisk,
-          riskDistribution: distribution,
-          recentEvents: audit.items,
+          events: audit.items,
+          unread: unread.total,
+          mappings: gaps.items,
         });
       })
       .catch(() => {
-        if (!cancelled) setError("Couldn't load the dashboard — the API may not be reachable.");
+        if (!cancelled) setError("Couldn't reach the API. Confirm the backend is running on port 3000.");
       });
     return () => {
       cancelled = true;
     };
   }, []);
 
-  useEffect(() => {
-    if (!data || !kpiRowRef.current) return;
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const cards = kpiRowRef.current.children;
-    if (reduceMotion) return;
-    gsap.set(cards, { willChange: "transform" });
-    gsap.from(cards, {
-      opacity: 0,
-      y: 12,
-      duration: 0.45,
-      stagger: 0.1,
-      ease: "power2.out",
-      clearProps: "willChange",
-    });
+  const derived = useMemo(() => {
+    if (!data) return null;
+    const river = buildExposureRiver(data.events);
+    const assetNames = new Map(data.assets.map((a) => [a.id, a.name]));
+    const surface = buildAssetSurface(data.assets);
+    const attention = buildAttentionIndex(data.risks, data.mappings, data.unread);
+    const latest = river[river.length - 1];
+
+    const residualPool = data.risks.reduce((sum, r) => sum + r.impactAmount * (r.residualScore / 100), 0);
+    const inherentPool = data.risks.reduce((sum, r) => sum + r.impactAmount * (r.inherentScore / 100), 0);
+    const absorbed = inherentPool - residualPool;
+
+    const compliant = data.mappings.filter((m) => m.gapStatus === "COMPLIANT").length;
+    const partial = data.mappings.filter((m) => m.gapStatus === "PARTIAL").length;
+    const gaps = data.mappings.filter((m) => m.gapStatus === "GAP").length;
+    const regulatoryHealth =
+      data.mappings.length === 0 ? null : Math.round(((compliant + partial * 0.5) / data.mappings.length) * 100);
+
+    return {
+      river,
+      assetNames,
+      surface,
+      attention,
+      latest,
+      residualPool,
+      inherentPool,
+      absorbed,
+      compliant,
+      partial,
+      gaps,
+      regulatoryHealth,
+      signals: buildSignalFeed(data.events, assetNames),
+      briefing: buildBriefing({
+        assets: data.assets,
+        risks: data.risks,
+        mappings: data.mappings,
+        river,
+        qRisk: data.qRisk,
+      }),
+    };
   }, [data]);
 
   if (error) {
     return (
-      <div className="dashboard-empty">
-        <p>{error}</p>
-      </div>
+      <Panel title="Connection lost" eyebrow="System">
+        <EmptyState>{error}</EmptyState>
+      </Panel>
     );
   }
 
-  if (!data) {
-    return <div className="dashboard-empty">Loading dashboard…</div>;
+  if (!data || !derived) {
+    return <div className="dash__loading">Reading institutional state…</div>;
   }
 
-  const maxCount = Math.max(1, ...data.riskDistribution.map((d) => d.count));
+  const scoredAssetIds = new Set(data.risks.map((r) => r.assetId));
+  const unscored = data.assets.filter((a) => !scoredAssetIds.has(a.id)).length;
+  const riverTrend = derived.river.map((p) => p.residual);
+  const exposureRising = riverTrend.length > 1 && riverTrend[riverTrend.length - 1] > riverTrend[0];
 
   return (
-    <div className="dashboard">
-      <aside className="dashboard__gauge-panel">
-        <QRiskGauge score={data.qRisk} />
-        <p className="dashboard__gauge-note">
-          Composed from asset coverage and residual risk health. Compliance and quantum-readiness factors join once
-          those signals are wired in.
-        </p>
-      </aside>
+    <div className="dash">
+      {/* ── Current state ─────────────────────────────────────────────── */}
+      <ExecutiveStrip>
+        <Readout
+          lead
+          label="Q-Risk"
+          value={String(Math.round(data.qRisk))}
+          unit="/ 100"
+          direction={{
+            tone: data.qRisk >= 75 ? "down" : data.qRisk >= 50 ? "flat" : "up",
+            text:
+              data.qRisk >= 75
+                ? "healthy band"
+                : data.qRisk >= 50
+                  ? "adequate, watch residuals"
+                  : "attention required",
+          }}
+          parts={[
+            { label: "Assets covered", value: String(derived.surface.total) },
+            { label: "Never scored", value: String(unscored) },
+          ]}
+        />
 
-      <div className="dashboard__main">
-        <div className="dashboard__kpi-row" ref={kpiRowRef}>
-          <KpiCard label="Total Assets" value={String(data.totalAssets)} accent="data" />
-          <KpiCard
-            label="High &amp; Critical Risks"
-            value={String(data.highRiskCount)}
-            accent={data.highRiskCount > 0 ? "risk" : "safe"}
-          />
-          <KpiCard label="Modeled Impact" value={formatCompactINR(data.modeledImpact)} accent="warn" hint="Sum of assessed risk impact" />
-          <KpiCard
-            label="Open Alerts"
-            value={String(data.openAlerts)}
-            accent={data.openAlerts > 0 ? "risk" : "safe"}
-            hint="Unread notifications"
-          />
-        </div>
+        <Readout
+          label="Residual exposure"
+          value={derived.residualPool > 0 ? formatCompactINR(derived.residualPool) : "—"}
+          direction={
+            derived.river.length > 1
+              ? {
+                  tone: exposureRising ? "up" : "down",
+                  text: exposureRising ? "accumulating this session" : "reduced this session",
+                }
+              : undefined
+          }
+          visual={riverTrend.length > 1 ? <Sparkline values={riverTrend} color="var(--indigo-600)" /> : undefined}
+          parts={[
+            { label: "Inherent modelled", value: derived.inherentPool > 0 ? formatCompactINR(derived.inherentPool) : "—" },
+            { label: "Absorbed by controls", value: derived.absorbed > 0 ? formatCompactINR(derived.absorbed) : "—" },
+          ]}
+        />
 
-        <section className="dashboard__panel">
-          <h2 className="dashboard__panel-title">Risk distribution</h2>
-          {data.riskDistribution.every((d) => d.count === 0) ? (
-            <p className="dashboard__empty-hint">
-              No risks calculated yet — <Link to="/risks">calculate a risk</Link> for an asset to see it here.
-            </p>
+        <Readout
+          label="Regulatory health"
+          value={derived.regulatoryHealth !== null ? `${derived.regulatoryHealth}%` : "Unproven"}
+          direction={
+            derived.regulatoryHealth === null
+              ? { tone: "flat", text: "no controls mapped yet" }
+              : derived.gaps > 0
+                ? { tone: "up", text: `${derived.gaps} open gap${derived.gaps === 1 ? "" : "s"}` }
+                : { tone: "down", text: "no outright gaps" }
+          }
+          parts={[
+            { label: "Compliant", value: String(derived.compliant) },
+            { label: "Partial", value: String(derived.partial) },
+            { label: "Gap", value: String(derived.gaps) },
+          ]}
+        />
+
+        <Readout
+          label="Attention index"
+          value={String(derived.attention.total)}
+          unit="signals"
+          direction={
+            derived.attention.executive > 0
+              ? { tone: "up", text: `${derived.attention.executive} need executive review` }
+              : { tone: "flat", text: "nothing at executive level" }
+          }
+          parts={[
+            { label: "Executive", value: String(derived.attention.executive) },
+            { label: "Operational", value: String(derived.attention.operational) },
+            { label: "Informational", value: String(derived.attention.informational) },
+          ]}
+        />
+      </ExecutiveStrip>
+
+      {/* ── The landscape: relationships, not counts ──────────────────── */}
+      <Panel
+        eyebrow="Institution risk landscape"
+        title="Risk constellation"
+        caption="Every tracked asset, the risks scored against it and the controls mapped to it. Concentration is the signal: a dense cluster is where exposure pools, an isolated node is something nothing is watching."
+        bleed
+        aside={
+          <Legend>
+            <LegendItem shape="dot" color="var(--ink-muted)" label="Asset" />
+            <LegendItem shape="diamond" color="var(--ink-muted)" label="Scored risk" />
+            <LegendItem shape="ring" label="Control" />
+          </Legend>
+        }
+      >
+        {data.assets.length === 0 ? (
+          <EmptyState>
+            The surface is empty. <Link to="/assets">Register an asset</Link> and the constellation forms around it —
+            risks and controls attach as you score and map them.
+          </EmptyState>
+        ) : (
+          <RiskConstellation assets={data.assets} risks={data.risks} mappings={data.mappings} />
+        )}
+      </Panel>
+
+      {/* ── Why it happened ───────────────────────────────────────────── */}
+      <div className="dash__split">
+        <Panel
+          eyebrow="Exposure"
+          title="Exposure river"
+          caption="Cumulative modelled exposure across the recorded event history. Every vertex is a real audit event — nothing between them is interpolated."
+          aside={
+            <Legend>
+              <LegendItem color="var(--indigo-600)" label="Residual" />
+              <LegendItem color="var(--indigo-200)" label="Absorbed by controls" />
+            </Legend>
+          }
+        >
+          {derived.river.length < 2 ? (
+            <EmptyState>
+              Not enough recorded history to draw a river yet. Score a risk or quantify an exposure and the log starts
+              building a real series — this chart never back-fills one.
+            </EmptyState>
           ) : (
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={data.riskDistribution} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="0" stroke="var(--border-hairline)" vertical={false} />
-                <XAxis
-                  dataKey="level"
-                  tick={{ fill: "var(--text-tertiary)", fontSize: 11, fontFamily: "var(--font-ui)" }}
-                  axisLine={{ stroke: "var(--border-hairline)" }}
-                  tickLine={false}
-                />
-                <YAxis
-                  allowDecimals={false}
-                  domain={[0, maxCount]}
-                  tick={{ fill: "var(--text-tertiary)", fontSize: 11, fontFamily: "var(--font-mono)" }}
-                  axisLine={false}
-                  tickLine={false}
-                  width={28}
-                />
-                <Bar dataKey="count" radius={[2, 2, 0, 0]} maxBarSize={56}>
-                  {data.riskDistribution.map((d) => (
-                    <Cell key={d.level} fill={LEVEL_COLOR[d.level]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <ExposureRiver points={derived.river} />
           )}
-        </section>
+        </Panel>
 
-        <section className="dashboard__panel">
-          <h2 className="dashboard__panel-title">Recent audit events</h2>
-          {data.recentEvents.length === 0 ? (
-            <p className="dashboard__empty-hint">
-              No activity recorded yet — actions across the platform will appear here as they happen.
-            </p>
+        <Panel
+          eyebrow="Board metric"
+          title="Risk health spectrum"
+          caption="Where the institution sits within the defined bands, and what the score is currently made of."
+        >
+          <RiskHealthSpectrum
+            score={data.qRisk}
+            composition={[
+              { label: "Asset coverage", state: "live" },
+              { label: "Residual risk health", state: "live" },
+              { label: "Compliance coverage", state: "pending" },
+              { label: "Operational resilience", state: "pending" },
+              { label: "Quantum readiness", state: "pending" },
+            ]}
+          />
+        </Panel>
+      </div>
+
+      {/* ── What to do next ───────────────────────────────────────────── */}
+      <div className="dash__split dash__split--wide-left">
+        <Panel
+          eyebrow="Today's signals"
+          title="Intelligence briefing"
+          caption="Generated from current platform state. Statements the data cannot support are not written."
+        >
+          {derived.briefing.length === 0 ? (
+            <EmptyState>
+              Nothing to brief on yet — the briefing writes only what the data supports, so it stays silent until there
+              is an institution to describe.
+            </EmptyState>
           ) : (
-            <ul className="dashboard__feed">
-              {data.recentEvents.map((event) => (
-                <li key={event.id} className="dashboard__feed-item">
-                  <span className="dashboard__feed-time num">{new Date(event.timestamp).toLocaleTimeString()}</span>
-                  <span className="dashboard__feed-action">{formatAction(event.action)}</span>
-                  <span className="dashboard__feed-entity">{event.entityType}</span>
-                </li>
-              ))}
-            </ul>
+            <IntelligenceBriefing lines={derived.briefing} generatedAt={new Date()} />
           )}
-        </section>
+        </Panel>
+
+        <Panel eyebrow="Live tape" title="Signal feed" bleed>
+          {derived.signals.length === 0 ? (
+            <EmptyState>No movements recorded. Every state change across the platform prints here as it happens.</EmptyState>
+          ) : (
+            <div className="dash__tape">
+              <SignalFeed signals={derived.signals} limit={40} />
+            </div>
+          )}
+        </Panel>
       </div>
     </div>
   );
