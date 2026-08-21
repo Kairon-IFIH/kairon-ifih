@@ -28,6 +28,13 @@ export class TenantMismatchError extends DomainError {
   }
 }
 
+export class CurrencyMismatchError extends DomainError {
+  readonly code = "CURRENCY_MISMATCH";
+  constructor(a: string, b: string) {
+    super(`Cannot operate on mismatched currencies: ${a} vs ${b}`);
+  }
+}
+
 export class InsufficientBudgetError extends DomainError {
   readonly code = "INSUFFICIENT_BUDGET";
   constructor() {
