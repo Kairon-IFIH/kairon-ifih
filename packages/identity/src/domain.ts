@@ -1,11 +1,12 @@
+import bcrypt from "bcryptjs";
 import {
   AggregateRoot,
   Entity,
-  NotImplementedError,
   OrganizationId,
   RoleId,
   TenantId,
   UserId,
+  ValidationError,
   ValueObject,
 } from "@kairon/shared-kernel";
 
@@ -26,8 +27,11 @@ export class Permission extends ValueObject<PermissionProps> {
     super(props);
   }
 
-  static create(_resource: string, _action: string): Permission {
-    throw new NotImplementedError("Permission.create — Phase 2, ARCHITECTURE.md §4.2");
+  static create(resource: string, action: string): Permission {
+    if (!resource.trim() || !action.trim()) {
+      throw new ValidationError(["Permission requires a non-empty resource and action"]);
+    }
+    return new Permission({ resource: resource.trim(), action: action.trim() });
   }
 
   get resource(): string {
@@ -37,12 +41,20 @@ export class Permission extends ValueObject<PermissionProps> {
   get action(): string {
     return this.props.action;
   }
+
+  /** "asset:create" style key, used for fast Set-based lookups. */
+  get key(): string {
+    return `${this.props.resource}:${this.props.action}`;
+  }
 }
 
 // ---- Entities ----
 
+export const ROLE_NAMES = ["TenantAdmin", "ComplianceOfficer", "RiskAnalyst", "Auditor"] as const;
+export type RoleName = (typeof ROLE_NAMES)[number];
+
 export interface RoleProps {
-  readonly name: "TenantAdmin" | "ComplianceOfficer" | "RiskAnalyst" | "Auditor";
+  readonly name: RoleName;
   readonly permissions: Permission[];
 }
 
@@ -51,12 +63,62 @@ export class Role extends Entity<RoleId> {
     super(id);
   }
 
-  static create(_id: RoleId, _props: RoleProps): Role {
-    throw new NotImplementedError("Role.create — Phase 2, ARCHITECTURE.md §4.2");
+  static create(id: RoleId, props: RoleProps): Role {
+    if (!ROLE_NAMES.includes(props.name)) {
+      throw new ValidationError([`Unknown role name: ${props.name}`]);
+    }
+    return new Role(id, props);
   }
 
-  hasPermission(_permission: Permission): boolean {
-    throw new NotImplementedError("Role.hasPermission — Phase 2, ARCHITECTURE.md §4.2");
+  get name(): RoleName {
+    return this.props.name;
+  }
+
+  get permissions(): readonly Permission[] {
+    return this.props.permissions;
+  }
+
+  hasPermission(permission: Permission): boolean {
+    return this.props.permissions.some(
+      (p) =>
+        p.equals(permission) ||
+        (p.resource === "*" && p.action === "*") ||
+        (p.resource === permission.resource && p.action === "*")
+    );
+  }
+}
+
+/** Baseline permission sets per role (ARCHITECTURE.md §4.2) — the Auditor role is read-only by construction. */
+export function defaultPermissionsForRole(name: RoleName): Permission[] {
+  switch (name) {
+    case "TenantAdmin":
+      return [
+        Permission.create("*", "*"),
+      ];
+    case "ComplianceOfficer":
+      return [
+        Permission.create("asset", "read"),
+        Permission.create("compliance", "read"),
+        Permission.create("compliance", "write"),
+      ];
+    case "RiskAnalyst":
+      return [
+        Permission.create("asset", "read"),
+        Permission.create("asset", "write"),
+        Permission.create("risk", "read"),
+        Permission.create("risk", "write"),
+        Permission.create("financial", "read"),
+        Permission.create("optimization", "read"),
+        Permission.create("optimization", "write"),
+      ];
+    case "Auditor":
+      return [
+        Permission.create("asset", "read"),
+        Permission.create("risk", "read"),
+        Permission.create("financial", "read"),
+        Permission.create("compliance", "read"),
+        Permission.create("audit", "read"),
+      ];
   }
 }
 
@@ -73,12 +135,38 @@ export class User extends Entity<UserId> {
     super(id);
   }
 
-  static create(_id: UserId, _props: UserProps): User {
-    throw new NotImplementedError("User.create — Phase 2, ARCHITECTURE.md §4.2");
+  static create(id: UserId, props: UserProps): User {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(props.email)) {
+      throw new ValidationError([`Invalid email: ${props.email}`]);
+    }
+    return new User(id, { ...props, email: props.email.toLowerCase() });
   }
 
-  verifyPassword(_plaintext: string): boolean {
-    throw new NotImplementedError("User.verifyPassword — Phase 2 (bcrypt), BACKEND.md Security Requirements");
+  static hashPassword(plaintext: string): string {
+    if (plaintext.length < 8) {
+      throw new ValidationError(["Password must be at least 8 characters"]);
+    }
+    return bcrypt.hashSync(plaintext, 10);
+  }
+
+  get tenantId(): TenantId {
+    return this.props.tenantId;
+  }
+
+  get organizationId(): OrganizationId {
+    return this.props.organizationId;
+  }
+
+  get email(): string {
+    return this.props.email;
+  }
+
+  get roleIds(): readonly RoleId[] {
+    return this.props.roleIds;
+  }
+
+  verifyPassword(plaintext: string): boolean {
+    return bcrypt.compareSync(plaintext, this.props.passwordHash);
   }
 }
 
@@ -92,8 +180,15 @@ export class Organization extends Entity<OrganizationId> {
     super(id);
   }
 
-  static create(_id: OrganizationId, _props: OrganizationProps): Organization {
-    throw new NotImplementedError("Organization.create — Phase 2");
+  static create(id: OrganizationId, props: OrganizationProps): Organization {
+    if (!props.name.trim()) {
+      throw new ValidationError(["Organization name cannot be empty"]);
+    }
+    return new Organization(id, props);
+  }
+
+  get name(): string {
+    return this.props.name;
   }
 }
 
@@ -109,8 +204,15 @@ export class Tenant extends AggregateRoot<TenantId> {
     super(id);
   }
 
-  static create(_id: TenantId, _props: TenantProps): Tenant {
-    throw new NotImplementedError("Tenant.create — Phase 2, ARCHITECTURE.md §4");
+  static create(id: TenantId, props: TenantProps): Tenant {
+    if (!props.name.trim()) {
+      throw new ValidationError(["Tenant name cannot be empty"]);
+    }
+    return new Tenant(id, props);
+  }
+
+  get name(): string {
+    return this.props.name;
   }
 }
 
