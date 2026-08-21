@@ -3,9 +3,12 @@ import {
   AssetId,
   AssetOwnerId,
   BusinessServiceId,
+  DomainEvent,
   Entity,
   NotImplementedError,
   TenantContext,
+  TenantId,
+  ValidationError,
   ValueObject,
 } from "@kairon/shared-kernel";
 
@@ -14,6 +17,13 @@ import {
 // ---- Value Objects ----
 
 export type CriticalityLevel = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+
+const CRITICALITY_WEIGHTS: Record<CriticalityLevel, number> = {
+  LOW: 1,
+  MEDIUM: 2,
+  HIGH: 3,
+  CRITICAL: 4,
+};
 
 export interface CriticalityProps {
   readonly level: CriticalityLevel;
@@ -25,8 +35,12 @@ export class Criticality extends ValueObject<CriticalityProps> {
     super(props);
   }
 
-  static create(_level: CriticalityLevel): Criticality {
-    throw new NotImplementedError("Criticality.create — Phase 2, ARCHITECTURE.md §3.2");
+  static create(level: CriticalityLevel): Criticality {
+    const weight = CRITICALITY_WEIGHTS[level];
+    if (weight === undefined) {
+      throw new ValidationError([`Unknown criticality level: ${level}`]);
+    }
+    return new Criticality({ level, weight });
   }
 
   get level(): CriticalityLevel {
@@ -40,6 +54,13 @@ export class Criticality extends ValueObject<CriticalityProps> {
 
 export type DataClassificationLevel = "PUBLIC" | "INTERNAL" | "CONFIDENTIAL" | "RESTRICTED";
 
+const DATA_CLASSIFICATION_LEVELS: DataClassificationLevel[] = [
+  "PUBLIC",
+  "INTERNAL",
+  "CONFIDENTIAL",
+  "RESTRICTED",
+];
+
 export interface DataClassificationProps {
   readonly level: DataClassificationLevel;
 }
@@ -49,8 +70,15 @@ export class DataClassification extends ValueObject<DataClassificationProps> {
     super(props);
   }
 
-  static create(_level: DataClassificationLevel): DataClassification {
-    throw new NotImplementedError("DataClassification.create — Phase 2");
+  static create(level: DataClassificationLevel): DataClassification {
+    if (!DATA_CLASSIFICATION_LEVELS.includes(level)) {
+      throw new ValidationError([`Unknown data classification level: ${level}`]);
+    }
+    return new DataClassification({ level });
+  }
+
+  get level(): DataClassificationLevel {
+    return this.props.level;
   }
 }
 
@@ -58,13 +86,18 @@ export interface RegulatoryScopeProps {
   readonly frameworkCodes: string[];
 }
 
+/** Populated meaningfully once Compliance mapping runs (Phase 4) — empty is a valid MVP default. */
 export class RegulatoryScope extends ValueObject<RegulatoryScopeProps> {
   private constructor(props: RegulatoryScopeProps) {
     super(props);
   }
 
-  static create(_frameworkCodes: string[]): RegulatoryScope {
-    throw new NotImplementedError("RegulatoryScope.create — Phase 4 (Compliance Engine)");
+  static create(frameworkCodes: string[] = []): RegulatoryScope {
+    return new RegulatoryScope({ frameworkCodes: [...frameworkCodes] });
+  }
+
+  get frameworkCodes(): readonly string[] {
+    return this.props.frameworkCodes;
   }
 }
 
@@ -81,7 +114,7 @@ export class AssetOwner extends Entity<AssetOwnerId> {
   }
 
   static create(_id: AssetOwnerId, _props: AssetOwnerProps): AssetOwner {
-    throw new NotImplementedError("AssetOwner.create — Phase 2");
+    throw new NotImplementedError("AssetOwner.create — Phase 2 enrichment, not required for MVP workflow");
   }
 }
 
@@ -95,7 +128,33 @@ export class BusinessService extends Entity<BusinessServiceId> {
   }
 
   static create(_id: BusinessServiceId, _props: BusinessServiceProps): BusinessService {
-    throw new NotImplementedError("BusinessService.create — Phase 2");
+    throw new NotImplementedError("BusinessService.create — Phase 2 enrichment, not required for MVP workflow");
+  }
+}
+
+// ---- Domain Events ----
+
+export class AssetDiscoveredEvent extends DomainEvent {
+  readonly eventName = "AssetDiscovered" as const;
+  constructor(
+    tenantId: TenantId,
+    readonly assetId: AssetId,
+    readonly assetType: string,
+    readonly criticality: CriticalityLevel
+  ) {
+    super(tenantId);
+  }
+}
+
+export class AssetClassifiedEvent extends DomainEvent {
+  readonly eventName = "AssetClassified" as const;
+  constructor(
+    tenantId: TenantId,
+    readonly assetId: AssetId,
+    readonly dataClassification: DataClassificationLevel,
+    readonly regulatoryScope: readonly string[]
+  ) {
+    super(tenantId);
   }
 }
 
@@ -112,17 +171,55 @@ export interface AssetProps {
 }
 
 export class Asset extends AggregateRoot<AssetId> {
-  private constructor(id: AssetId, private readonly props: AssetProps) {
+  private constructor(
+    id: AssetId,
+    private readonly tenantId: TenantId,
+    private props: AssetProps
+  ) {
     super(id);
   }
 
-  /** Raises AssetDiscovered on creation (ARCHITECTURE.md §8) — deferred. */
-  static create(_id: AssetId, _props: AssetProps): Asset {
-    throw new NotImplementedError("Asset.create — Phase 2, ARCHITECTURE.md §1.4 workflow entry point");
+  /** Raises AssetDiscovered (ARCHITECTURE.md §8) — the MVP workflow's entry point. */
+  static create(id: AssetId, tenantId: TenantId, props: AssetProps): Asset {
+    if (!props.name.trim()) {
+      throw new ValidationError(["Asset name cannot be empty"]);
+    }
+    if (!props.assetType.trim()) {
+      throw new ValidationError(["Asset type cannot be empty"]);
+    }
+    const asset = new Asset(id, tenantId, props);
+    asset.addDomainEvent(
+      new AssetDiscoveredEvent(tenantId, id, props.assetType, props.criticality.level)
+    );
+    return asset;
   }
 
-  classify(_dataClassification: DataClassification, _regulatoryScope: RegulatoryScope): void {
-    throw new NotImplementedError("Asset.classify — Phase 2, raises AssetClassified");
+  get name(): string {
+    return this.props.name;
+  }
+
+  get assetType(): string {
+    return this.props.assetType;
+  }
+
+  get criticality(): Criticality {
+    return this.props.criticality;
+  }
+
+  get dataClassification(): DataClassification {
+    return this.props.dataClassification;
+  }
+
+  get regulatoryScope(): RegulatoryScope {
+    return this.props.regulatoryScope;
+  }
+
+  /** Raises AssetClassified (ARCHITECTURE.md §8). */
+  classify(dataClassification: DataClassification, regulatoryScope: RegulatoryScope): void {
+    this.props = { ...this.props, dataClassification, regulatoryScope };
+    this.addDomainEvent(
+      new AssetClassifiedEvent(this.tenantId, this.id, dataClassification.level, regulatoryScope.frameworkCodes)
+    );
   }
 }
 
