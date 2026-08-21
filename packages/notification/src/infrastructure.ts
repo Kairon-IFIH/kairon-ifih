@@ -1,19 +1,57 @@
-import { NotificationId, NotImplementedError, TenantContext, UserId } from "@kairon/shared-kernel";
-import type { Notification, NotificationRepository } from "./domain";
+import type { PrismaClient } from "@prisma/client";
+import { asNotificationId, NotificationId, TenantContext, UserId } from "@kairon/shared-kernel";
+import { Notification, NotificationType } from "./domain";
+import type { NotificationRepository } from "./domain";
 
 export class PrismaNotificationRepository implements NotificationRepository {
-  constructor(private readonly prisma: unknown) {}
+  constructor(private readonly prisma: PrismaClient) {}
 
-  async findForUser(_ctx: TenantContext, _userId: UserId, _unreadOnly: boolean): Promise<Notification[]> {
-    throw new NotImplementedError("PrismaNotificationRepository.findForUser — Phase 5");
+  private toDomain(row: {
+    id: string;
+    recipientUserId: string;
+    type: string;
+    payload: unknown;
+    read: boolean;
+    createdAt: Date;
+  }): Notification {
+    return Notification.reconstitute(asNotificationId(row.id), {
+      recipientUserId: row.recipientUserId as UserId,
+      type: row.type as NotificationType,
+      payload: row.payload as Record<string, unknown>,
+      read: row.read,
+      createdAt: row.createdAt,
+    });
   }
 
-  async findById(_ctx: TenantContext, _notificationId: NotificationId): Promise<Notification | null> {
-    throw new NotImplementedError("PrismaNotificationRepository.findById — Phase 5");
+  async findForUser(ctx: TenantContext, userId: UserId, unreadOnly: boolean): Promise<Notification[]> {
+    const rows = await this.prisma.notification.findMany({
+      where: { tenantId: ctx.tenantId, recipientUserId: userId, ...(unreadOnly ? { read: false } : {}) },
+      orderBy: { createdAt: "desc" },
+    });
+    return rows.map((r) => this.toDomain(r));
   }
 
-  async save(_ctx: TenantContext, _notification: Notification): Promise<void> {
-    throw new NotImplementedError("PrismaNotificationRepository.save — Phase 5");
+  async findById(ctx: TenantContext, notificationId: NotificationId): Promise<Notification | null> {
+    const row = await this.prisma.notification.findFirst({ where: { id: notificationId, tenantId: ctx.tenantId } });
+    return row ? this.toDomain(row) : null;
+  }
+
+  async save(ctx: TenantContext, notification: Notification): Promise<void> {
+    await this.prisma.notification.upsert({
+      where: { id: notification.id },
+      create: {
+        id: notification.id,
+        tenantId: ctx.tenantId,
+        recipientUserId: notification.recipientUserId,
+        type: notification.type,
+        payload: notification.payload as object,
+        read: notification.read,
+        createdAt: notification.createdAt,
+      },
+      update: {
+        read: notification.read,
+      },
+    });
   }
 }
 

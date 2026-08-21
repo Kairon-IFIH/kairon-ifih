@@ -165,6 +165,11 @@ export class User extends Entity<UserId> {
     return this.props.roleIds;
   }
 
+  /** Already hashed — needed by repositories to persist the user, never the plaintext. */
+  get passwordHash(): string {
+    return this.props.passwordHash;
+  }
+
   verifyPassword(plaintext: string): boolean {
     return bcrypt.compareSync(plaintext, this.props.passwordHash);
   }

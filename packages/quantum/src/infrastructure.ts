@@ -1,22 +1,142 @@
 import { randomUUID } from "node:crypto";
-import { asOptimizationResultId, Money, NotImplementedError, OptimizationJobId, TenantContext } from "@kairon/shared-kernel";
+import type { Prisma, PrismaClient, OptimizationJob as OptimizationJobRow, OptimizationResult as OptimizationResultRow } from "@prisma/client";
 import {
+  asOptimizationJobId,
+  asOptimizationResultId,
+  asTenantId,
+  CurrencyCode,
+  Money,
+  NotImplementedError,
+  OptimizationJobId,
+  TenantContext,
+} from "@kairon/shared-kernel";
+import {
+  BudgetConstraint,
+  ObjectiveFunction,
+  OptimizationJob,
   OptimizationResult,
   type CandidateAction,
-  type OptimizationJob,
   type OptimizationJobRepository,
   type QuantumSolverGateway,
 } from "./domain";
 
-export class PrismaOptimizationJobRepository implements OptimizationJobRepository {
-  constructor(private readonly prisma: unknown) {}
+interface StoredCandidateAction {
+  actionId: string;
+  costAmount: number;
+  riskReduction: number;
+}
 
-  async findById(_ctx: TenantContext, _jobId: OptimizationJobId): Promise<OptimizationJob | null> {
-    throw new NotImplementedError("PrismaOptimizationJobRepository.findById — Phase 5");
+export class PrismaOptimizationJobRepository implements OptimizationJobRepository {
+  constructor(private readonly prisma: PrismaClient) {}
+
+  private toDomainResult(row: OptimizationResultRow): OptimizationResult {
+    // No separate residualRiskCurrency column — the solver always prices
+    // residual risk in the same currency as totalCost (GreedyClassicalSolverGateway).
+    return OptimizationResult.create(asOptimizationResultId(row.id), {
+      selectedActionIds: row.selectedActionIds as string[],
+      totalCost: Money.create(row.totalCostAmount, row.totalCostCurrency as CurrencyCode),
+      riskReductionPercent: row.riskReductionPercent,
+      residualRisk: Money.create(row.residualRiskAmount, row.totalCostCurrency as CurrencyCode),
+      classicalBaselineComparison: {
+        classicalRuntimeMs: row.classicalRuntimeMs,
+        quantumRuntimeMs: row.quantumRuntimeMs,
+        qualityDelta: row.qualityDelta,
+      },
+    });
   }
 
-  async save(_ctx: TenantContext, _job: OptimizationJob): Promise<void> {
-    throw new NotImplementedError("PrismaOptimizationJobRepository.save — Phase 5");
+  private toDomain(row: OptimizationJobRow & { result: OptimizationResultRow | null }): OptimizationJob {
+    const candidateActions = (row.candidateActions as unknown as StoredCandidateAction[]).map(
+      (a): CandidateAction => ({
+        actionId: a.actionId,
+        cost: Money.create(a.costAmount, row.budgetCurrency as CurrencyCode),
+        riskReduction: a.riskReduction,
+      })
+    );
+
+    const job = OptimizationJob.create(asOptimizationJobId(row.id), asTenantId(row.tenantId), {
+      objective: ObjectiveFunction.default(),
+      constraints: [],
+      candidateActions,
+      mandatoryActionIds: row.mandatoryActionIds as string[],
+      budgetConstraint: BudgetConstraint.create(Money.create(row.budgetAmount, row.budgetCurrency as CurrencyCode)),
+    });
+
+    // OptimizationJob.create() always starts PENDING — replay the persisted
+    // status through the same transitions the domain exposes so terminal
+    // state (COMPLETED/FAILED) round-trips without a separate rehydration path.
+    if (row.status === "RUNNING" || row.status === "COMPLETED") {
+      job.markRunning();
+    }
+    if (row.status === "COMPLETED" && row.result) {
+      job.complete(this.toDomainResult(row.result));
+    }
+    if (row.status === "FAILED") {
+      job.markFailed();
+    }
+
+    return job;
+  }
+
+  async findById(ctx: TenantContext, jobId: OptimizationJobId): Promise<OptimizationJob | null> {
+    const row = await this.prisma.optimizationJob.findFirst({
+      where: { id: jobId, tenantId: ctx.tenantId },
+      include: { result: true },
+    });
+    return row ? this.toDomain(row) : null;
+  }
+
+  async save(ctx: TenantContext, job: OptimizationJob): Promise<void> {
+    const candidateActions: StoredCandidateAction[] = job.candidateActions.map((a) => ({
+      actionId: a.actionId,
+      costAmount: a.cost.amount,
+      riskReduction: a.riskReduction,
+    }));
+
+    await this.prisma.optimizationJob.upsert({
+      where: { id: job.id },
+      create: {
+        id: job.id,
+        tenantId: ctx.tenantId,
+        status: job.status,
+        candidateActions: candidateActions as unknown as Prisma.InputJsonValue,
+        mandatoryActionIds: [...job.mandatoryActionIds],
+        budgetAmount: job.budgetConstraint.maxSpend.amount,
+        budgetCurrency: job.budgetConstraint.maxSpend.currency,
+      },
+      update: {
+        status: job.status,
+      },
+    });
+
+    if (job.result) {
+      const result = job.result;
+      await this.prisma.optimizationResult.upsert({
+        where: { jobId: job.id },
+        create: {
+          id: result.id,
+          jobId: job.id,
+          selectedActionIds: [...result.selectedActionIds],
+          totalCostAmount: result.totalCost.amount,
+          totalCostCurrency: result.totalCost.currency,
+          riskReductionPercent: result.riskReductionPercent,
+          residualRiskAmount: result.residualRisk.amount,
+          classicalRuntimeMs: result.classicalBaselineComparison.classicalRuntimeMs,
+          quantumRuntimeMs: result.classicalBaselineComparison.quantumRuntimeMs,
+          qualityDelta: result.classicalBaselineComparison.qualityDelta,
+        },
+        update: {
+          selectedActionIds: [...result.selectedActionIds],
+          totalCostAmount: result.totalCost.amount,
+          totalCostCurrency: result.totalCost.currency,
+          riskReductionPercent: result.riskReductionPercent,
+          residualRiskAmount: result.residualRisk.amount,
+          classicalRuntimeMs: result.classicalBaselineComparison.classicalRuntimeMs,
+          quantumRuntimeMs: result.classicalBaselineComparison.quantumRuntimeMs,
+          qualityDelta: result.classicalBaselineComparison.qualityDelta,
+        },
+      });
+    }
   }
 }
 

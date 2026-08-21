@@ -1,19 +1,75 @@
-import { AssetId, NotImplementedError, TenantContext } from "@kairon/shared-kernel";
-import type { FinancialExposure, FinancialExposureRepository } from "./domain";
+import type { PrismaClient } from "@prisma/client";
+import { asAssetId, asFinancialExposureId, asRiskId, asTenantId, AssetId, CurrencyCode, Money, TenantContext } from "@kairon/shared-kernel";
+import { ExpectedLoss, FinancialExposure, ResidualRisk } from "./domain";
+import type { FinancialExposureRepository } from "./domain";
 
 export class PrismaFinancialExposureRepository implements FinancialExposureRepository {
-  constructor(private readonly prisma: unknown) {}
+  constructor(private readonly prisma: PrismaClient) {}
 
-  async list(_ctx: TenantContext): Promise<FinancialExposure[]> {
-    throw new NotImplementedError("PrismaFinancialExposureRepository.list — Phase 3");
+  private toDomain(row: {
+    id: string;
+    tenantId: string;
+    assetId: string;
+    riskId: string;
+    expectedLossAmount: number;
+    expectedLossCurrency: string;
+    financialExposureAmount: number;
+    financialExposureCurrency: string;
+    residualRiskAmount: number;
+  }): FinancialExposure {
+    const id = asFinancialExposureId(row.id);
+    const financialExposure = Money.create(row.financialExposureAmount, row.financialExposureCurrency as CurrencyCode);
+    return FinancialExposure.create(id, asTenantId(row.tenantId), {
+      assetId: asAssetId(row.assetId),
+      riskId: asRiskId(row.riskId),
+      expectedLoss: ExpectedLoss.create(id, {
+        annualizedAmount: Money.create(row.expectedLossAmount, row.expectedLossCurrency as CurrencyCode),
+      }),
+      financialExposure,
+      // MVP: residual-risk exposure tracks the same currency as the financial
+      // exposure figure (see QuantifyExposureUseCaseImpl) — no separate column.
+      residualRisk: ResidualRisk.create(Money.create(row.residualRiskAmount, row.financialExposureCurrency as CurrencyCode)),
+    });
   }
 
-  async findByAsset(_ctx: TenantContext, _assetId: AssetId): Promise<FinancialExposure[]> {
-    throw new NotImplementedError("PrismaFinancialExposureRepository.findByAsset — Phase 3");
+  async list(ctx: TenantContext): Promise<FinancialExposure[]> {
+    const rows = await this.prisma.financialExposure.findMany({
+      where: { tenantId: ctx.tenantId },
+      orderBy: { createdAt: "asc" },
+    });
+    return rows.map((r) => this.toDomain(r));
   }
 
-  async save(_ctx: TenantContext, _exposure: FinancialExposure): Promise<void> {
-    throw new NotImplementedError("PrismaFinancialExposureRepository.save — Phase 3");
+  async findByAsset(ctx: TenantContext, assetId: AssetId): Promise<FinancialExposure[]> {
+    const rows = await this.prisma.financialExposure.findMany({
+      where: { tenantId: ctx.tenantId, assetId },
+      orderBy: { createdAt: "asc" },
+    });
+    return rows.map((r) => this.toDomain(r));
+  }
+
+  async save(ctx: TenantContext, exposure: FinancialExposure): Promise<void> {
+    await this.prisma.financialExposure.upsert({
+      where: { id: exposure.id },
+      create: {
+        id: exposure.id,
+        tenantId: ctx.tenantId,
+        assetId: exposure.assetId,
+        riskId: exposure.riskId,
+        expectedLossAmount: exposure.expectedLoss.annualizedAmount.amount,
+        expectedLossCurrency: exposure.expectedLoss.annualizedAmount.currency,
+        financialExposureAmount: exposure.financialExposure.amount,
+        financialExposureCurrency: exposure.financialExposure.currency,
+        residualRiskAmount: exposure.residualRisk.exposure.amount,
+      },
+      update: {
+        expectedLossAmount: exposure.expectedLoss.annualizedAmount.amount,
+        expectedLossCurrency: exposure.expectedLoss.annualizedAmount.currency,
+        financialExposureAmount: exposure.financialExposure.amount,
+        financialExposureCurrency: exposure.financialExposure.currency,
+        residualRiskAmount: exposure.residualRisk.exposure.amount,
+      },
+    });
   }
 }
 

@@ -1,6 +1,7 @@
 import express from "express";
 import helmet from "helmet";
 import cors from "cors";
+import { PrismaClient } from "@prisma/client";
 
 import { InMemoryEventPublisher } from "@kairon/event-contracts";
 import {
@@ -9,9 +10,12 @@ import {
   InMemoryTenantRepository,
   InMemoryUserRepository,
   InMemoryRoleRepository,
+  PrismaTenantRepository,
+  PrismaUserRepository,
+  PrismaRoleRepository,
   seedDemoTenant,
 } from "@kairon/identity";
-import { createAssetModule, createAssetRouter, InMemoryAssetRepository } from "@kairon/asset";
+import { createAssetModule, createAssetRouter, InMemoryAssetRepository, PrismaAssetRepository } from "@kairon/asset";
 import {
   createComplianceModule,
   createComplianceRouter,
@@ -19,27 +23,34 @@ import {
   InMemoryRegulationRepository,
   InMemoryControlRepository,
   InMemoryComplianceMappingRepository,
+  PrismaFrameworkRepository,
+  PrismaRegulationRepository,
+  PrismaControlRepository,
+  PrismaComplianceMappingRepository,
   RegulatoryTraceabilityServiceImpl,
   seedComplianceReferenceData,
 } from "@kairon/compliance";
-import { createRiskModule, createRiskRouter, InMemoryRiskRepository, RiskScoringServiceImpl } from "@kairon/risk";
+import { createRiskModule, createRiskRouter, InMemoryRiskRepository, PrismaRiskRepository, RiskScoringServiceImpl } from "@kairon/risk";
 import {
   createFinancialModule,
   createFinancialRouter,
   InMemoryFinancialExposureRepository,
+  PrismaFinancialExposureRepository,
   QRiskAggregationServiceImpl,
 } from "@kairon/financial";
 import {
   createQuantumModule,
   createQuantumRouter,
   InMemoryOptimizationJobRepository,
+  PrismaOptimizationJobRepository,
   GreedyClassicalSolverGateway,
 } from "@kairon/quantum";
-import { createAuditModule, createAuditRouter, InMemoryAuditEventRepository } from "@kairon/audit";
+import { createAuditModule, createAuditRouter, InMemoryAuditEventRepository, PrismaAuditEventRepository } from "@kairon/audit";
 import {
   createNotificationModule,
   createNotificationRouter,
   InMemoryNotificationRepository,
+  PrismaNotificationRepository,
   type RecipientResolver,
 } from "@kairon/notification";
 import { asUserId } from "@kairon/shared-kernel";
@@ -53,32 +64,49 @@ import { requestLoggerMiddleware } from "./middleware/request-logger.middleware"
 
 const log = createLogger("bootstrap");
 
+/** Same demo tenant convention prisma/seed.ts writes — see that file for the source of truth. */
+const DEMO_ADMIN_EMAIL = "admin@demo-bank.example";
+
 /**
  * Composition root: this is the only file in the whole system allowed to know
  * about every bounded context at once. Everything above (domain/application
  * layers) stays ignorant of Express, Prisma, and each other.
  *
- * Persistence is in-memory across every context — the real Phase-2 swap is
- * dropping in the PrismaX* classes that already sit next to each InMemoryX*
- * class in every package's infrastructure.ts; nothing above this file changes
- * when that happens.
+ * Persistence: in-memory when DATABASE_URL is unset (the original hackathon-cut
+ * dev loop — `npm run dev` with no database needed), Prisma-backed against a
+ * real Postgres otherwise. Data seeded via `npm run seed` (prisma/seed.ts) is
+ * what makes the DB-backed mode "hold" across restarts/redeploys — this file
+ * does not auto-seed the database, only the in-memory fallback.
  */
 async function createApp() {
   const eventPublisher = new InMemoryEventPublisher();
+  const prisma = process.env.DATABASE_URL ? new PrismaClient() : null;
 
-  const tenantRepository = new InMemoryTenantRepository();
-  const userRepository = new InMemoryUserRepository();
-  const roleRepository = new InMemoryRoleRepository();
+  const tenantRepository = prisma ? new PrismaTenantRepository(prisma) : new InMemoryTenantRepository();
+  const userRepository = prisma ? new PrismaUserRepository(prisma) : new InMemoryUserRepository();
+  const roleRepository = prisma ? new PrismaRoleRepository(prisma) : new InMemoryRoleRepository();
   const identity = createIdentityModule({ tenantRepository, userRepository, roleRepository });
 
-  const assetRepository = new InMemoryAssetRepository();
+  const assetRepository = prisma ? new PrismaAssetRepository(prisma) : new InMemoryAssetRepository();
   const asset = createAssetModule({ assetRepository, eventPublisher });
 
-  const frameworkRepository = new InMemoryFrameworkRepository();
-  const regulationRepository = new InMemoryRegulationRepository();
-  const controlRepository = new InMemoryControlRepository();
-  const complianceMappingRepository = new InMemoryComplianceMappingRepository();
-  await seedComplianceReferenceData({ frameworkRepository, regulationRepository, controlRepository });
+  const frameworkRepository = prisma ? new PrismaFrameworkRepository(prisma) : new InMemoryFrameworkRepository();
+  const regulationRepository = prisma ? new PrismaRegulationRepository(prisma) : new InMemoryRegulationRepository();
+  const controlRepository = prisma ? new PrismaControlRepository(prisma) : new InMemoryControlRepository();
+  const complianceMappingRepository = prisma
+    ? new PrismaComplianceMappingRepository(prisma)
+    : new InMemoryComplianceMappingRepository();
+  if (!prisma) {
+    // DB-backed reference data comes from `npm run seed` instead (idempotent,
+    // operator-triggered) — auto-seeding here would re-insert on every restart.
+    // The cast is safe under this guard: prisma is null, so these are
+    // guaranteed to be the InMemory* instances constructed above.
+    await seedComplianceReferenceData({
+      frameworkRepository: frameworkRepository as InMemoryFrameworkRepository,
+      regulationRepository: regulationRepository as InMemoryRegulationRepository,
+      controlRepository: controlRepository as InMemoryControlRepository,
+    });
+  }
   const compliance = createComplianceModule({
     frameworkRepository,
     regulationRepository,
@@ -93,14 +121,16 @@ async function createApp() {
     eventPublisher,
   });
 
-  const riskRepository = new InMemoryRiskRepository();
+  const riskRepository = prisma ? new PrismaRiskRepository(prisma) : new InMemoryRiskRepository();
   const risk = createRiskModule({
     riskRepository,
     riskScoringService: new RiskScoringServiceImpl({ assetRepository }),
     eventPublisher,
   });
 
-  const financialExposureRepository = new InMemoryFinancialExposureRepository();
+  const financialExposureRepository = prisma
+    ? new PrismaFinancialExposureRepository(prisma)
+    : new InMemoryFinancialExposureRepository();
   const financial = createFinancialModule({
     financialExposureRepository,
     riskRepository,
@@ -109,7 +139,7 @@ async function createApp() {
   });
 
   const quantum = createQuantumModule({
-    optimizationJobRepository: new InMemoryOptimizationJobRepository(),
+    optimizationJobRepository: prisma ? new PrismaOptimizationJobRepository(prisma) : new InMemoryOptimizationJobRepository(),
     // MVP: classical-only greedy solver. HttpQuantumSolverGateway(quantumRunnerBaseUrl)
     // is the real Phase 5 swap once apps/quantum-runner's Qiskit/PennyLane
     // service exists — same interface, no caller changes.
@@ -117,30 +147,41 @@ async function createApp() {
     eventPublisher,
   });
 
-  const auditEventRepository = new InMemoryAuditEventRepository();
+  const auditEventRepository = prisma ? new PrismaAuditEventRepository(prisma) : new InMemoryAuditEventRepository();
   const audit = createAuditModule({ auditEventRepository });
 
   // Cross-cutting: every domain event, from every context, reaches Audit (ARCHITECTURE.md §8).
   eventPublisher.subscribe("*", (envelope) => audit.recordAuditEvent.execute(envelope).then(() => undefined));
 
-  const seed = await seedDemoTenant({ tenantRepository, userRepository, roleRepository });
-  log.info("demo tenant seeded", { tenantId: seed.tenantId, adminEmail: seed.adminEmail });
-  // Deliberately NOT via the structured logger (which would redact it, correctly)
-  // — this is a one-time operator convenience for the hackathon demo, not an
-  // application log line, and must never run when NODE_ENV=production.
-  if (process.env.NODE_ENV !== "production") {
-    // eslint-disable-next-line no-console
-    console.log(`Demo login: ${seed.adminEmail} / ${seed.adminPassword}`);
-  }
-
   // MVP: single-recipient resolver (the seeded tenant admin). A real
   // subscription/preference model is Phase 6 — see @kairon/notification's
   // RecipientResolver doc comment for why this seam exists.
+  let recipientUserId = asUserId("user-demo-admin");
+  if (!prisma) {
+    const seed = await seedDemoTenant({ tenantRepository, userRepository, roleRepository });
+    recipientUserId = asUserId(seed.adminUserId);
+    log.info("demo tenant seeded", { tenantId: seed.tenantId, adminEmail: seed.adminEmail });
+    // Deliberately NOT via the structured logger (which would redact it, correctly)
+    // — this is a one-time operator convenience for the hackathon demo, not an
+    // application log line, and must never run when NODE_ENV=production.
+    if (process.env.NODE_ENV !== "production") {
+      // eslint-disable-next-line no-console
+      console.log(`Demo login: ${seed.adminEmail} / ${seed.adminPassword}`);
+    }
+  } else {
+    const demoAdmin = await userRepository.findByEmail(DEMO_ADMIN_EMAIL);
+    if (demoAdmin) {
+      recipientUserId = demoAdmin.id;
+    } else {
+      log.info("no seeded demo admin found — run `npm run seed` to populate the database", {});
+    }
+  }
+
   const recipientResolver: RecipientResolver = {
-    resolve: () => asUserId(seed.adminUserId),
+    resolve: () => recipientUserId,
   };
   const notification = createNotificationModule({
-    notificationRepository: new InMemoryNotificationRepository(),
+    notificationRepository: prisma ? new PrismaNotificationRepository(prisma) : new InMemoryNotificationRepository(),
     recipientResolver,
   });
   eventPublisher.subscribe("OptimizationExecuted", (envelope) =>

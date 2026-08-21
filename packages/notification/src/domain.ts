@@ -30,6 +30,11 @@ export class Notification extends AggregateRoot<NotificationId> {
     return new Notification(id, { ...props, read: false, createdAt: new Date() });
   }
 
+  /** Rehydrates a previously-persisted notification — bypasses create()'s forced read:false/createdAt:now, which exist only to establish a brand-new notification's initial state. */
+  static reconstitute(id: NotificationId, props: NotificationProps): Notification {
+    return new Notification(id, props);
+  }
+
   get recipientUserId(): UserId {
     return this.props.recipientUserId;
   }

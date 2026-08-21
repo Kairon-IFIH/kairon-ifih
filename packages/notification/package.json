@@ -13,6 +13,7 @@
     "@kairon/event-contracts": "*",
     "@kairon/api-contracts": "*",
     "@kairon/logger": "*",
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "@prisma/client": "6.19.3"
   }
 }

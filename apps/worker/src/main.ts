@@ -1,4 +1,5 @@
 import { Worker } from "bullmq";
+import type { PrismaClient } from "@prisma/client";
 import { ALL_QUEUES, type AnyDomainEventEnvelope } from "@kairon/event-contracts";
 import { createAuditModule, PrismaAuditEventRepository } from "@kairon/audit";
 import { createNotificationModule, PrismaNotificationRepository, type RecipientResolver } from "@kairon/notification";
@@ -18,7 +19,10 @@ const log = createLogger("worker");
  * the real Phase-2 consumer once a BullMqEventPublisher replaces that.
  */
 function createWorkers() {
-  const prismaClient: unknown = undefined;
+  // Not yet wired to a real connection — this process doesn't consume anything
+  // today (see the doc comment above); typed so it compiles against the same
+  // PrismaXRepository constructors apps/api uses once it is.
+  const prismaClient = undefined as unknown as PrismaClient;
   const connection = {
     host: process.env.REDIS_HOST ?? "localhost",
     port: Number(process.env.REDIS_PORT ?? 6379),

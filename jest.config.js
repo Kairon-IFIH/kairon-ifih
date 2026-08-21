@@ -3,6 +3,7 @@ module.exports = {
   preset: "ts-jest",
   testEnvironment: "node",
   testMatch: ["**/*.test.ts"],
+  setupFiles: ["<rootDir>/jest.setup.js"],
   moduleNameMapper: {
     "^@kairon/shared-kernel$": "<rootDir>/packages/shared-kernel/src/index.ts",
     "^@kairon/logger$": "<rootDir>/packages/logger/src/index.ts",

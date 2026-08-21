@@ -1,19 +1,74 @@
-import { AssetId, NotImplementedError, TenantContext } from "@kairon/shared-kernel";
-import type { Asset, AssetRepository } from "./domain";
+import type { PrismaClient } from "@prisma/client";
+import {
+  asAssetId,
+  asAssetOwnerId,
+  asBusinessServiceId,
+  asTenantId,
+  AssetId,
+  TenantContext,
+} from "@kairon/shared-kernel";
+import { Asset, Criticality, CriticalityLevel, DataClassification, DataClassificationLevel, RegulatoryScope } from "./domain";
+import type { AssetRepository } from "./domain";
 
 export class PrismaAssetRepository implements AssetRepository {
-  constructor(private readonly prisma: unknown) {}
+  constructor(private readonly prisma: PrismaClient) {}
 
-  async findById(_ctx: TenantContext, _assetId: AssetId): Promise<Asset | null> {
-    throw new NotImplementedError("PrismaAssetRepository.findById — Phase 2");
+  private toDomain(row: {
+    id: string;
+    tenantId: string;
+    name: string;
+    assetType: string;
+    ownerId: string | null;
+    businessServiceId: string | null;
+    criticalityLevel: string;
+    dataClassification: string;
+    regulatoryScope: unknown;
+  }): Asset {
+    return Asset.create(asAssetId(row.id), asTenantId(row.tenantId), {
+      name: row.name,
+      assetType: row.assetType,
+      ownerId: row.ownerId ? asAssetOwnerId(row.ownerId) : undefined,
+      businessServiceId: row.businessServiceId ? asBusinessServiceId(row.businessServiceId) : undefined,
+      criticality: Criticality.create(row.criticalityLevel as CriticalityLevel),
+      dataClassification: DataClassification.create(row.dataClassification as DataClassificationLevel),
+      regulatoryScope: RegulatoryScope.create(row.regulatoryScope as string[]),
+    });
   }
 
-  async list(_ctx: TenantContext): Promise<Asset[]> {
-    throw new NotImplementedError("PrismaAssetRepository.list — Phase 2");
+  async findById(ctx: TenantContext, assetId: AssetId): Promise<Asset | null> {
+    const row = await this.prisma.asset.findFirst({ where: { id: assetId, tenantId: ctx.tenantId } });
+    return row ? this.toDomain(row) : null;
   }
 
-  async save(_ctx: TenantContext, _asset: Asset): Promise<void> {
-    throw new NotImplementedError("PrismaAssetRepository.save — Phase 2");
+  async list(ctx: TenantContext): Promise<Asset[]> {
+    const rows = await this.prisma.asset.findMany({ where: { tenantId: ctx.tenantId }, orderBy: { createdAt: "asc" } });
+    return rows.map((r) => this.toDomain(r));
+  }
+
+  async save(ctx: TenantContext, asset: Asset): Promise<void> {
+    await this.prisma.asset.upsert({
+      where: { id: asset.id },
+      create: {
+        id: asset.id,
+        tenantId: ctx.tenantId,
+        name: asset.name,
+        assetType: asset.assetType,
+        ownerId: asset.ownerId ?? null,
+        businessServiceId: asset.businessServiceId ?? null,
+        criticalityLevel: asset.criticality.level,
+        dataClassification: asset.dataClassification.level,
+        regulatoryScope: [...asset.regulatoryScope.frameworkCodes],
+      },
+      update: {
+        name: asset.name,
+        assetType: asset.assetType,
+        ownerId: asset.ownerId ?? null,
+        businessServiceId: asset.businessServiceId ?? null,
+        criticalityLevel: asset.criticality.level,
+        dataClassification: asset.dataClassification.level,
+        regulatoryScope: [...asset.regulatoryScope.frameworkCodes],
+      },
+    });
   }
 }
 

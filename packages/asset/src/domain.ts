@@ -219,6 +219,14 @@ export class Asset extends AggregateRoot<AssetId> {
     return this.props.assetType;
   }
 
+  get ownerId(): AssetOwnerId | undefined {
+    return this.props.ownerId;
+  }
+
+  get businessServiceId(): BusinessServiceId | undefined {
+    return this.props.businessServiceId;
+  }
+
   get criticality(): Criticality {
     return this.props.criticality;
   }
