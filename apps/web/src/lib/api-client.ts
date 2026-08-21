@@ -67,7 +67,13 @@ interface RequestOptions {
 }
 
 function buildUrl(path: string, query?: RequestOptions["query"]): string {
-  const url = new URL(`${BASE_URL}${path}`);
+  // The URL constructor throws synchronously if the first argument isn't
+  // itself absolute — which BASE_URL isn't in production (it's the relative
+  // "/api/v1", baked in at build time so the SPA calls same-origin and never
+  // needs the deploy host's IP). Passing location.origin as the base makes
+  // both the relative-in-prod and absolute-in-dev (http://localhost:3000/...)
+  // forms resolve correctly; an already-absolute URL simply ignores the base.
+  const url = new URL(`${BASE_URL}${path}`, window.location.origin);
   if (query) {
     for (const [key, value] of Object.entries(query)) {
       if (value !== undefined) url.searchParams.set(key, String(value));
