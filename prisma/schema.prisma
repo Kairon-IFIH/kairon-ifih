@@ -1,0 +1,293 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =========================================================
+// MVP — Identity (required to log in / issue tenant context)
+// =========================================================
+
+model Tenant {
+  id            String         @id @default(uuid())
+  name          String
+  createdAt     DateTime       @default(now())
+  organizations Organization[]
+  users         User[]
+  roles         Role[]
+  assets        Asset[]
+  risks         Risk[]
+  exposures     FinancialExposure[]
+  jobs          OptimizationJob[]
+  auditEvents   AuditEvent[]
+
+  @@map("tenants")
+}
+
+model Organization {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  name      String
+  users     User[]
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@map("organizations")
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  name        String // TenantAdmin | ComplianceOfficer | RiskAnalyst | Auditor
+  permissions Json // Permission[] as [{resource, action}]
+  users       UserRole[]
+
+  @@index([tenantId])
+  @@map("roles")
+}
+
+model User {
+  id             String       @id @default(uuid())
+  tenantId       String
+  tenant         Tenant       @relation(fields: [tenantId], references: [id])
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  email          String       @unique
+  passwordHash   String
+  roles          UserRole[]
+  createdAt      DateTime     @default(now())
+
+  @@index([tenantId])
+  @@map("users")
+}
+
+model UserRole {
+  userId String
+  roleId String
+  user   User @relation(fields: [userId], references: [id])
+  role   Role @relation(fields: [roleId], references: [id])
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+// =========================================================
+// MVP — Asset Discovery
+// =========================================================
+
+model Asset {
+  id                 String   @id @default(uuid())
+  tenantId           String
+  tenant             Tenant   @relation(fields: [tenantId], references: [id])
+  name               String
+  assetType          String
+  ownerId            String?
+  businessServiceId  String?
+  criticalityLevel   String // LOW | MEDIUM | HIGH | CRITICAL
+  dataClassification String // PUBLIC | INTERNAL | CONFIDENTIAL | RESTRICTED
+  regulatoryScope    Json // string[] framework codes
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  risks     Risk[]
+  exposures FinancialExposure[]
+
+  @@index([tenantId])
+  @@index([tenantId, criticalityLevel])
+  @@map("assets")
+}
+
+// =========================================================
+// MVP — Risk Intelligence
+// =========================================================
+
+model Risk {
+  id                  String   @id @default(uuid())
+  tenantId            String
+  tenant              Tenant   @relation(fields: [tenantId], references: [id])
+  assetId             String
+  asset               Asset    @relation(fields: [assetId], references: [id])
+  likelihood          Float
+  impactAmount        Float
+  impactCurrency      String
+  controlEffectiveness Float
+  inherentScore       Int
+  residualScore       Int
+  level               String // LOW | MEDIUM | HIGH | CRITICAL
+  createdAt           DateTime @default(now())
+
+  exposures FinancialExposure[]
+
+  @@index([tenantId])
+  @@index([tenantId, assetId])
+  @@map("risks")
+}
+
+// =========================================================
+// MVP — Financial Quantification
+// =========================================================
+
+model FinancialExposure {
+  id                    String   @id @default(uuid())
+  tenantId              String
+  tenant                Tenant   @relation(fields: [tenantId], references: [id])
+  assetId               String
+  asset                 Asset    @relation(fields: [assetId], references: [id])
+  riskId                String
+  risk                  Risk     @relation(fields: [riskId], references: [id])
+  expectedLossAmount    Float
+  expectedLossCurrency  String
+  financialExposureAmount   Float
+  financialExposureCurrency String
+  residualRiskAmount    Float
+  createdAt             DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([tenantId, assetId])
+  @@map("financial_exposures")
+}
+
+// =========================================================
+// MVP — Quantum Optimization
+// =========================================================
+
+model OptimizationJob {
+  id                 String   @id @default(uuid())
+  tenantId           String
+  tenant             Tenant   @relation(fields: [tenantId], references: [id])
+  status             String // PENDING | RUNNING | COMPLETED | FAILED
+  candidateActions   Json // [{actionId, cost, currency, riskReduction}]
+  mandatoryActionIds Json // string[]
+  budgetAmount       Float
+  budgetCurrency     String
+  createdAt          DateTime @default(now())
+
+  result OptimizationResult?
+
+  @@index([tenantId])
+  @@map("optimization_jobs")
+}
+
+model OptimizationResult {
+  id                    String          @id @default(uuid())
+  jobId                 String          @unique
+  job                   OptimizationJob @relation(fields: [jobId], references: [id])
+  selectedActionIds     Json // string[]
+  totalCostAmount       Float
+  totalCostCurrency     String
+  riskReductionPercent  Int
+  residualRiskAmount    Float
+  classicalRuntimeMs    Int
+  quantumRuntimeMs      Int
+  qualityDelta          Float
+  createdAt             DateTime @default(now())
+
+  @@map("optimization_results")
+}
+
+// =========================================================
+// MVP — Audit (append-only; no update/delete grants at the DB role level)
+// =========================================================
+
+model AuditEvent {
+  id           String   @id @default(uuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  timestamp    DateTime @default(now())
+  actorUserId  String
+  actorName    String
+  action       String
+  entityType   String
+  entityId     String
+  before       Json
+  after        Json
+
+  @@index([tenantId, timestamp])
+  @@index([tenantId, entityType, entityId])
+  @@map("audit_events")
+}
+
+// =========================================================
+// Optional for MVP — Compliance (thin cut; safe to migrate later without
+// touching anything above)
+// =========================================================
+
+model Framework {
+  id           String       @id @default(uuid())
+  code         String       @unique // DPDP | GDPR | DORA | NIST | ISO27001
+  version      String
+  regulations  Regulation[]
+
+  @@map("frameworks")
+}
+
+model Regulation {
+  id              String    @id @default(uuid())
+  frameworkId     String
+  framework       Framework @relation(fields: [frameworkId], references: [id])
+  name            String
+  clauseReference String
+  controls        Control[]
+
+  @@index([frameworkId])
+  @@map("regulations")
+}
+
+model Control {
+  id            String       @id @default(uuid())
+  regulationId  String
+  regulation    Regulation   @relation(fields: [regulationId], references: [id])
+  name          String
+  maturityLevel Int
+  mappings      ComplianceMapping[]
+
+  @@index([regulationId])
+  @@map("controls")
+}
+
+model ComplianceMapping {
+  id         String   @id @default(uuid())
+  tenantId   String
+  assetId    String
+  controlId  String
+  control    Control  @relation(fields: [controlId], references: [id])
+  gapStatus  String // COMPLIANT | GAP | PARTIAL
+  evidence   Json // Evidence[] as [{description, documentRef}]
+  createdAt  DateTime @default(now())
+
+  @@index([tenantId, assetId])
+  @@map("compliance_mappings")
+}
+
+// =========================================================
+// Optional for MVP — Notification
+// =========================================================
+
+model Notification {
+  id              String   @id @default(uuid())
+  tenantId        String
+  recipientUserId String
+  type            String // OPTIMIZATION_COMPLETE | REMEDIATION_PENDING_APPROVAL
+  payload         Json
+  read            Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  @@index([tenantId, recipientUserId])
+  @@map("notifications")
+}
+
+// =========================================================
+// Future phases — not created now (schema documented here for continuity;
+// see docs/IMPLEMENTATION_ROADMAP.md Phase 6). No models below this line.
+// - RemediationAction (standalone catalog, currently embedded as Json on
+//   OptimizationJob.candidateActions)
+// - Evidence as a first-class table (currently Json on ComplianceMapping)
+// - InsurancePolicy / UnderwritingProfile (Insurance Intelligence layer)
+// - CryptographicAsset / PqcMigrationTask (Quantum Readiness / PQC module)
+// - RefreshTokenRevocation (reuse-detection hardening, ARCHITECTURE.md §9)
+// =========================================================
