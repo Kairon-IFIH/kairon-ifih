@@ -506,8 +506,19 @@ def cmd_github_oidc(args) -> None:
                     "token.actions.githubusercontent.com:aud": GITHUB_OIDC_AUDIENCE
                 },
                 # Scoped to THIS repo — no other repo can assume this role.
+                # Two patterns because GitHub's "sub" claim format depends on
+                # repo history: a plain "repo:OWNER/REPO:ref:..." normally, but
+                # "repo:OWNER@ownerId/REPO@repoId:ref:..." (immutable IDs) once
+                # a repo has ever been renamed or transferred — anti-repo-
+                # jacking protection so a stale trust policy can't be inherited
+                # by whoever claims the old name next. A transferred repo keeps
+                # emitting the decorated form even after further renames, so
+                # match both rather than trying to predict which applies.
                 "StringLike": {
-                    "token.actions.githubusercontent.com:sub": f"repo:{slug}:*"
+                    "token.actions.githubusercontent.com:sub": [
+                        f"repo:{slug}:*",
+                        f"repo:{slug.split('/')[0]}@*/{slug.split('/')[1]}@*:*",
+                    ]
                 },
             },
         }],
