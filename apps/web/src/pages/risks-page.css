@@ -1,91 +1,111 @@
-.risks-page {
+.risks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+}
+
+.risks__split {
   display: grid;
-  grid-template-columns: 1fr 320px;
-  gap: var(--space-6);
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: var(--s-5);
   align-items: start;
 }
 
-.risks-page__list {
-  background: var(--surface-2);
-  border: 1px solid var(--border-hairline);
-  border-radius: var(--radius-sharp);
-  padding: var(--space-5);
+@media (max-width: 1080px) {
+  .risks__split {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
-.risks-page__panel {
-  background: var(--surface-2);
-  border: 1px solid var(--border-hairline);
-  border-radius: var(--radius-sharp);
-  padding: var(--space-5);
-  position: sticky;
-  top: var(--space-8);
+.risks__error {
+  margin: var(--s-4) var(--s-6) 0;
 }
 
-.risks-page__panel-title {
-  font-family: var(--font-ui);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: var(--space-4);
+/* A newly scored row flashes once, then settles — enough to find it, not
+   enough to be a party trick. */
+.risks__row--new td {
+  animation: risks-flash 1.2s var(--ease);
 }
 
-.risks-page__preview {
-  background: var(--surface-1);
-  border: 1px solid var(--border-hairline);
-  border-radius: var(--radius-sharp);
-  padding: var(--space-4);
-  margin-bottom: var(--space-4);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.risks-page__preview-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-}
-
-.risks-page__preview-row--result {
-  padding-top: var(--space-2);
-  margin-top: var(--space-1);
-  border-top: 1px solid var(--border-hairline);
-  color: var(--text-primary);
-  align-items: center;
-}
-
-.risks-page__preview-note {
-  font-size: var(--text-xs);
-  color: var(--text-tertiary);
-  line-height: 1.5;
-  margin-top: var(--space-1);
-}
-
-.risks-page__row--new {
-  animation: risks-row-in 0.6s var(--ease-precision);
-}
-
-@keyframes risks-row-in {
+@keyframes risks-flash {
   from {
-    background: var(--accent-data-dim);
+    background: var(--accent-wash-strong);
   }
   to {
     background: transparent;
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .risks-page__row--new {
-    animation: none;
-  }
+.risks__preview {
+  padding: var(--s-4);
+  background: var(--surface-sunken);
+  border-radius: var(--r-sm);
+  margin-bottom: var(--s-5);
 }
 
-@media (max-width: 900px) {
-  .risks-page {
-    grid-template-columns: 1fr;
-  }
-  .risks-page__panel {
-    position: static;
-  }
+.risks__preview-title {
+  display: block;
+  font-size: var(--t-micro);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-bottom: var(--s-3);
+}
+
+.risks__formula {
+  font-size: var(--t-xs);
+  color: var(--ink-secondary);
+  margin-bottom: var(--s-3);
+}
+
+/* Inherent as the full track, residual as the bar that survives it — the
+   gap between them IS the control effect, shown rather than stated. */
+.risks__preview-bar {
+  position: relative;
+  height: 8px;
+  background: var(--surface);
+  border-radius: var(--r-pill);
+  overflow: hidden;
+  margin-bottom: var(--s-4);
+}
+
+.risks__preview-bar-inherent {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  background: var(--indigo-200);
+}
+
+.risks__preview-bar-residual {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  border-radius: var(--r-pill);
+}
+
+.risks__preview-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.risks__preview-rows > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  font-size: var(--t-xs);
+}
+
+.risks__preview-rows dt {
+  color: var(--ink-muted);
+}
+
+.risks__preview-rows dd {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.risks__run {
+  width: 100%;
 }

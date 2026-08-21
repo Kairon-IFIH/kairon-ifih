@@ -1,6 +1,8 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Cell } from "recharts";
-import { Trash2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { Trash2, Plus } from "lucide-react";
+import { Panel, EmptyState } from "../components/Panel";
+import { ExecutiveStrip, Readout } from "../components/ExecutiveStrip";
+import { OptimizationFrontier, type FrontierNode } from "../components/viz/OptimizationFrontier";
 import { createOptimizationJob, getOptimizationJob } from "../lib/endpoints";
 import { formatCompactINR } from "../lib/format";
 import type { OptimizationJob } from "../types/api";
@@ -14,21 +16,30 @@ interface DraftAction {
   mandatory: boolean;
 }
 
+/** A starting portfolio so the screen has something to reason about on arrival. */
+const STARTER: Omit<DraftAction, "actionId">[] = [
+  { label: "Rotate payment signing keys", cost: 1800000, riskReductionPercent: 34, mandatory: false },
+  { label: "MFA on privileged access", cost: 650000, riskReductionPercent: 22, mandatory: false },
+  { label: "Tokenise card data at rest", cost: 2400000, riskReductionPercent: 28, mandatory: false },
+  { label: "Patch SWIFT gateway stack", cost: 380000, riskReductionPercent: 12, mandatory: false },
+  { label: "Segment branch VPN", cost: 1200000, riskReductionPercent: 19, mandatory: false },
+];
+
 export function OptimizationPage() {
-  const [actions, setActions] = useState<DraftAction[]>([]);
+  const [actions, setActions] = useState<DraftAction[]>(() =>
+    STARTER.map((a) => ({ ...a, actionId: crypto.randomUUID() }))
+  );
   const [label, setLabel] = useState("");
   const [cost, setCost] = useState(500000);
   const [riskReductionPercent, setRiskReductionPercent] = useState(20);
-  const [budget, setBudget] = useState(1500000);
+  const [budget, setBudget] = useState(3000000);
   const [job, setJob] = useState<OptimizationJob | null>(null);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const pollRef = useRef<number | null>(null);
 
-  useEffect(() => {
-    return () => {
-      if (pollRef.current) window.clearInterval(pollRef.current);
-    };
+  useEffect(() => () => {
+    if (pollRef.current) window.clearInterval(pollRef.current);
   }, []);
 
   function addAction(e: FormEvent) {
@@ -41,13 +52,40 @@ export function OptimizationPage() {
     setLabel("");
   }
 
-  function removeAction(actionId: string) {
-    setActions((prev) => prev.filter((a) => a.actionId !== actionId));
-  }
+  const selectedIds = useMemo(
+    () => new Set(job?.result?.selectedActionIds ?? []),
+    [job]
+  );
 
-  function toggleMandatory(actionId: string) {
-    setActions((prev) => prev.map((a) => (a.actionId === actionId ? { ...a, mandatory: !a.mandatory } : a)));
-  }
+  /**
+   * The frontier walks candidates in descending efficiency — the same order
+   * the server's greedy solver uses — so the drawn path matches the search
+   * the optimizer actually performed.
+   */
+  const frontier = useMemo<FrontierNode[]>(() => {
+    const ordered = [...actions].sort(
+      (a, b) => b.riskReductionPercent / b.cost - a.riskReductionPercent / a.cost
+    );
+    let cumCost = 0;
+    let cumReduction = 0;
+    return ordered.map((a) => {
+      cumCost += a.cost;
+      cumReduction = Math.min(100, cumReduction + a.riskReductionPercent);
+      return {
+        actionId: a.actionId,
+        label: a.label,
+        cost: a.cost,
+        reduction: a.riskReductionPercent,
+        cumulativeCost: cumCost,
+        cumulativeReduction: cumReduction,
+        selected: selectedIds.has(a.actionId),
+        affordable: cumCost <= budget,
+      };
+    });
+  }, [actions, selectedIds, budget]);
+
+  const portfolioCost = actions.reduce((s, a) => s + a.cost, 0);
+  const result = job?.status === "COMPLETED" ? job.result : null;
 
   async function runOptimization() {
     if (actions.length === 0) return;
@@ -67,153 +105,228 @@ export function OptimizationPage() {
       });
 
       const poll = async () => {
-        const result = await getOptimizationJob(jobId);
-        setJob(result);
-        if (result.status === "COMPLETED" || result.status === "FAILED") {
+        const res = await getOptimizationJob(jobId);
+        setJob(res);
+        if (res.status === "COMPLETED" || res.status === "FAILED") {
           if (pollRef.current) window.clearInterval(pollRef.current);
           setRunning(false);
         }
       };
       await poll();
-      pollRef.current = window.setInterval(poll, 1000);
+      pollRef.current = window.setInterval(poll, 900);
     } catch {
       setError("Optimization job failed to start.");
       setRunning(false);
     }
   }
 
-  const selectedIds = new Set(job?.result?.selectedActionIds ?? []);
-  const chartData = actions.map((a) => ({
-    label: a.label,
-    cost: a.cost,
-    riskReduction: a.riskReductionPercent,
-    selected: selectedIds.has(a.actionId),
-  }));
-  const maxCost = Math.max(1, ...chartData.map((d) => d.cost));
-
   return (
-    <div className="optimization-page">
-      <section className="optimization-page__builder">
-        <h2 className="risks-page__panel-title">Portfolio</h2>
-        <form className="optimization-page__add-form" onSubmit={addAction}>
-          <div className="optimization-page__add-form-row">
+    <div className="optim">
+      <ExecutiveStrip>
+        <Readout
+          lead
+          label="Risk reduction bought"
+          value={result ? `${Math.round(result.riskReductionPercent)}%` : "—"}
+          direction={
+            result
+              ? { tone: "down", text: `for ${formatCompactINR(result.totalCostAmount)} committed` }
+              : { tone: "flat", text: "run the optimizer to resolve a portfolio" }
+          }
+          parts={[
+            { label: "Candidates", value: String(actions.length) },
+            { label: "Selected", value: result ? String(result.selectedActionIds.length) : "—" },
+          ]}
+        />
+        <Readout
+          label="Capital committed"
+          value={result ? formatCompactINR(result.totalCostAmount) : formatCompactINR(0)}
+          unit={`of ${formatCompactINR(budget)}`}
+          direction={
+            result
+              ? {
+                  tone: "flat",
+                  text: `${formatCompactINR(budget - result.totalCostAmount)} left unspent`,
+                }
+              : undefined
+          }
+          parts={[{ label: "Full portfolio would cost", value: formatCompactINR(portfolioCost) }]}
+        />
+        <Readout
+          label="Residual after action"
+          value={result ? formatCompactINR(result.residualRiskAmount) : "—"}
+          direction={
+            result
+              ? { tone: "up", text: "what the budget could not reach" }
+              : undefined
+          }
+        />
+        <Readout
+          label="Solver"
+          variant="text"
+          value={job ? job.status : "IDLE"}
+          direction={{ tone: "flat", text: "classical greedy — QAOA not yet wired" }}
+          parts={
+            result
+              ? [
+                  { label: "Classical runtime", value: `${result.classicalBaselineComparison.classicalRuntimeMs} ms` },
+                  { label: "Quality delta", value: String(result.classicalBaselineComparison.qualityDelta) },
+                ]
+              : undefined
+          }
+        />
+      </ExecutiveStrip>
+
+      <Panel
+        eyebrow="Decision surface"
+        title="Optimization frontier"
+        caption="Candidates ordered by risk reduction per rupee — the same order the solver walks. Where the curve flattens, each additional rupee buys less than the one before it. The shaded band is beyond budget."
+        bleed
+      >
+        {actions.length === 0 ? (
+          <EmptyState>Add at least one remediation action to draw the frontier.</EmptyState>
+        ) : (
+          <OptimizationFrontier nodes={frontier} budget={budget} currency="INR" />
+        )}
+      </Panel>
+
+      <div className="optim__split">
+        <Panel eyebrow="Portfolio" title="Candidate actions" bleed>
+          {actions.length === 0 ? (
+            <EmptyState>Nothing in the portfolio yet.</EmptyState>
+          ) : (
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Action</th>
+                  <th className="num">Cost</th>
+                  <th className="num">Reduction</th>
+                  <th className="num">Per ₹1L</th>
+                  <th>Mandatory</th>
+                  <th>Outcome</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {actions.map((a) => (
+                  <tr key={a.actionId} data-selected={selectedIds.has(a.actionId) ? "true" : undefined}>
+                    <td>{a.label}</td>
+                    <td className="num">{formatCompactINR(a.cost)}</td>
+                    <td className="num">{a.riskReductionPercent}%</td>
+                    <td className="num">{(a.riskReductionPercent / (a.cost / 100000)).toFixed(2)}%</td>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={a.mandatory}
+                        onChange={() =>
+                          setActions((prev) =>
+                            prev.map((x) => (x.actionId === a.actionId ? { ...x, mandatory: !x.mandatory } : x))
+                          )
+                        }
+                        aria-label={`Mark ${a.label} mandatory`}
+                      />
+                    </td>
+                    <td>
+                      {!result ? (
+                        <span className="optim__pending">—</span>
+                      ) : selectedIds.has(a.actionId) ? (
+                        <span className="optim__chosen">selected</span>
+                      ) : (
+                        <span className="optim__dropped">not funded</span>
+                      )}
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        onClick={() => setActions((prev) => prev.filter((x) => x.actionId !== a.actionId))}
+                        aria-label={`Remove ${a.label}`}
+                        className="optim__remove"
+                      >
+                        <Trash2 size={13} strokeWidth={1.75} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </Panel>
+
+        <Panel eyebrow="Constraints" title="Run the optimizer">
+          <form className="optim__add" onSubmit={addAction}>
             <label className="form-field">
-              <span className="eyebrow">Remediation action</span>
-              <input className="form-input" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. Rotate encryption keys" />
-            </label>
-            <label className="form-field">
-              <span className="eyebrow">Cost (₹)</span>
+              <span className="eyebrow">Add action</span>
               <input
-                className="form-input num"
-                type="number"
-                min={0}
-                value={cost}
-                onChange={(e) => setCost(Number(e.target.value))}
+                className="form-input"
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+                placeholder="e.g. Rotate encryption keys"
               />
             </label>
-          </div>
-          <label className="form-field">
-            <span className="eyebrow">Expected risk reduction — {riskReductionPercent}%</span>
+            <div className="optim__add-row">
+              <label className="form-field">
+                <span className="eyebrow">Cost ₹</span>
+                <input
+                  className="form-input num"
+                  type="number"
+                  min={0}
+                  step={50000}
+                  value={cost}
+                  onChange={(e) => setCost(Number(e.target.value))}
+                />
+              </label>
+              <label className="form-field">
+                <span className="eyebrow">Reduction {riskReductionPercent}%</span>
+                <input
+                  type="range"
+                  min={1}
+                  max={100}
+                  value={riskReductionPercent}
+                  onChange={(e) => setRiskReductionPercent(Number(e.target.value))}
+                />
+              </label>
+            </div>
+            <button type="submit" className="form-button form-button--ghost optim__add-btn">
+              <Plus size={14} strokeWidth={1.75} /> Add to portfolio
+            </button>
+          </form>
+
+          <div className="optim__budget">
+            <div className="optim__budget-head">
+              <span className="eyebrow">Budget cap</span>
+              <span className="optim__budget-value num">{formatCompactINR(budget)}</span>
+            </div>
             <input
               type="range"
               min={0}
-              max={100}
-              value={riskReductionPercent}
-              onChange={(e) => setRiskReductionPercent(Number(e.target.value))}
+              max={Math.max(5000000, portfolioCost)}
+              step={50000}
+              value={budget}
+              onChange={(e) => setBudget(Number(e.target.value))}
             />
-          </label>
-          <button type="submit" className="form-button form-button--ghost">
-            Add to portfolio
+            <p className="optim__budget-note">
+              {budget >= portfolioCost
+                ? "Budget covers the entire portfolio — the optimizer has nothing to trade off."
+                : `${formatCompactINR(portfolioCost - budget)} of candidate spend cannot be funded this cycle.`}
+            </p>
+          </div>
+
+          {error && <p className="form-error">{error}</p>}
+
+          <button
+            type="button"
+            className="form-button optim__run"
+            onClick={runOptimization}
+            disabled={running || actions.length === 0}
+          >
+            {running ? "Solving…" : "Resolve optimal portfolio"}
           </button>
-        </form>
 
-        {actions.length === 0 ? (
-          <p className="asset-detail__hint">No actions yet — add at least one remediation action above.</p>
-        ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Action</th>
-                <th>Cost</th>
-                <th>Risk reduction</th>
-                <th>Mandatory</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {actions.map((a) => (
-                <tr key={a.actionId} className={selectedIds.has(a.actionId) ? "optimization-page__row--selected" : undefined}>
-                  <td>{a.label}</td>
-                  <td className="num">{formatCompactINR(a.cost)}</td>
-                  <td className="num">{a.riskReductionPercent}%</td>
-                  <td>
-                    <input type="checkbox" checked={a.mandatory} onChange={() => toggleMandatory(a.actionId)} aria-label="Mandatory" />
-                  </td>
-                  <td>
-                    <button type="button" onClick={() => removeAction(a.actionId)} aria-label="Remove" className="optimization-page__remove">
-                      <Trash2 size={14} strokeWidth={1.75} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-
-        <label className="form-field optimization-page__budget">
-          <span className="eyebrow">Budget cap — {formatCompactINR(budget)}</span>
-          <input type="range" min={0} max={5000000} step={50000} value={budget} onChange={(e) => setBudget(Number(e.target.value))} />
-        </label>
-
-        {error && <p className="form-error">{error}</p>}
-        <button type="button" className="form-button" onClick={runOptimization} disabled={running || actions.length === 0}>
-          {running ? "Optimizing…" : "Optimize portfolio"}
-        </button>
-      </section>
-
-      <section className="optimization-page__result">
-        <h2 className="risks-page__panel-title">Result</h2>
-        {!job ? (
-          <p className="asset-detail__hint">Run the optimizer to see the selected portfolio here.</p>
-        ) : job.status !== "COMPLETED" ? (
-          <p className="asset-detail__hint num">Status: {job.status}…</p>
-        ) : job.result ? (
-          <>
-            <div className="optimization-page__stats">
-              <div>
-                <span className="eyebrow">Risk reduction</span>
-                <span className="optimization-page__stat-value num">{job.result.riskReductionPercent.toFixed(0)}%</span>
-              </div>
-              <div>
-                <span className="eyebrow">Total cost</span>
-                <span className="optimization-page__stat-value num">{formatCompactINR(job.result.totalCostAmount)}</span>
-              </div>
-              <div>
-                <span className="eyebrow">Residual risk</span>
-                <span className="optimization-page__stat-value num">{formatCompactINR(job.result.residualRiskAmount)}</span>
-              </div>
-            </div>
-
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="0" stroke="var(--border-hairline)" vertical={false} />
-                <XAxis dataKey="label" tick={{ fill: "var(--text-tertiary)", fontSize: 10, fontFamily: "var(--font-ui)" }} axisLine={{ stroke: "var(--border-hairline)" }} tickLine={false} />
-                <YAxis domain={[0, maxCost]} tick={{ fill: "var(--text-tertiary)", fontSize: 10, fontFamily: "var(--font-mono)" }} axisLine={false} tickLine={false} width={48} />
-                <Bar dataKey="cost" radius={[2, 2, 0, 0]} maxBarSize={56}>
-                  {chartData.map((d) => (
-                    <Cell key={d.label} fill={d.selected ? "var(--accent-safe)" : "var(--accent-data)"} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-            <p className="optimization-page__hint">Green bars were selected by the solver; cost is shown per action, in ₹.</p>
-          </>
-        ) : null}
-
-        <p className="optimization-page__disclosure">
-          Currently using classical greedy optimization. Quantum QAOA solver in development.
-        </p>
-      </section>
+          <p className="optim__disclosure">
+            Currently solved by a classical greedy knapsack over risk-reduction-per-rupee. The QAOA path is designed
+            and stubbed but not wired — this screen does not claim quantum advantage it cannot demonstrate.
+          </p>
+        </Panel>
+      </div>
     </div>
   );
 }

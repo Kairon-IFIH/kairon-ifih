@@ -1,109 +1,120 @@
-.optimization-page {
+.optim {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+}
+
+.optim__split {
   display: grid;
-  grid-template-columns: 1.2fr 1fr;
-  gap: var(--space-6);
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: var(--s-5);
   align-items: start;
 }
 
-.optimization-page__builder,
-.optimization-page__result {
-  background: var(--surface-2);
-  border: 1px solid var(--border-hairline);
-  border-radius: var(--radius-sharp);
-  padding: var(--space-5);
+@media (max-width: 1080px) {
+  .optim__split {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
-.optimization-page__result {
-  position: sticky;
-  top: var(--space-8);
+/* A funded row is marked by an accent edge as well as the word "selected" —
+   the outcome column carries the meaning, the tint only reinforces it. */
+.data-table tbody tr[data-selected="true"] {
+  background: var(--accent-wash);
 }
 
-.optimization-page__add-form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  margin-bottom: var(--space-5);
-  padding-bottom: var(--space-5);
-  border-bottom: 1px solid var(--border-hairline);
+.data-table tbody tr[data-selected="true"] td:first-child {
+  box-shadow: inset 2px 0 0 var(--accent);
 }
 
-.optimization-page__add-form-row {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: var(--space-4);
-}
-
-.optimization-page__add-form .form-field {
-  margin-bottom: 0;
-  min-width: 0;
-}
-
-.optimization-page__add-form input[type="range"] {
-  width: 100%;
-}
-
-.optimization-page__add-form > .form-button {
-  align-self: flex-start;
-}
-
-.optimization-page__row--selected {
-  background: var(--accent-safe-dim);
-}
-
-.optimization-page__remove {
-  color: var(--text-tertiary);
-  padding: var(--space-1);
-}
-
-.optimization-page__remove:hover {
-  color: var(--accent-risk);
-}
-
-.optimization-page__budget {
-  margin-top: var(--space-5);
-}
-
-.optimization-page__budget input[type="range"] {
-  width: 100%;
-}
-
-.optimization-page__stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-4);
-  margin-bottom: var(--space-5);
-}
-
-.optimization-page__stat-value {
-  display: block;
-  font-size: 1.5rem;
+.optim__chosen {
+  font-size: var(--t-micro);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
   font-weight: 500;
-  color: var(--text-primary);
-  margin-top: var(--space-1);
 }
 
-.optimization-page__hint {
-  font-size: var(--text-xs);
-  color: var(--text-tertiary);
-  margin-top: var(--space-2);
+.optim__dropped {
+  font-size: var(--t-micro);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
 }
 
-.optimization-page__disclosure {
-  margin-top: var(--space-6);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--border-hairline);
-  font-size: var(--text-xs);
-  color: var(--text-tertiary);
+.optim__pending {
+  color: var(--ink-faint);
 }
 
-@media (max-width: 1024px) {
-  .optimization-page {
-    grid-template-columns: 1fr;
-  }
-  .optimization-page__result {
-    position: static;
-  }
-  .optimization-page__add-form {
-    grid-template-columns: 1fr;
-  }
+.optim__remove {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--r-sm);
+  color: var(--ink-faint);
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.optim__remove:hover {
+  background: var(--sev-critical-wash);
+  color: var(--sev-critical);
+}
+
+.optim__add {
+  padding-bottom: var(--s-5);
+  margin-bottom: var(--s-5);
+  border-bottom: 1px solid var(--rule);
+}
+
+.optim__add-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: var(--s-4);
+  align-items: end;
+}
+
+.optim__add-row .form-field:last-child {
+  padding-bottom: var(--s-3);
+}
+
+.optim__add-btn {
+  width: 100%;
+}
+
+.optim__budget {
+  margin-bottom: var(--s-5);
+}
+
+.optim__budget-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: var(--s-3);
+}
+
+.optim__budget-value {
+  font-size: var(--t-base);
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.optim__budget-note {
+  margin-top: var(--s-3);
+  font-size: var(--t-xs);
+  line-height: 1.5;
+  color: var(--ink-muted);
+}
+
+.optim__run {
+  width: 100%;
+}
+
+.optim__disclosure {
+  margin-top: var(--s-5);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--rule);
+  font-size: var(--t-xs);
+  line-height: 1.6;
+  color: var(--ink-muted);
 }
