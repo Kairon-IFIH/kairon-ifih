@@ -1,0 +1,81 @@
+.atlas {
+  position: relative;
+  width: 100%;
+}
+
+.atlas__svg {
+  display: block;
+}
+
+.atlas__col-label {
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  fill: var(--ink-faint);
+}
+
+.atlas__ribbon {
+  fill: none;
+  stroke-width: 1.5;
+  stroke-opacity: 0.5;
+  transition: stroke-opacity var(--dur-base) var(--ease);
+}
+
+.atlas__ribbon[data-dim="true"] {
+  stroke-opacity: 0.1;
+}
+
+.atlas__node {
+  cursor: pointer;
+}
+
+.atlas__node-box {
+  fill: var(--surface);
+  stroke: var(--rule-strong);
+  stroke-width: 1;
+  transition: opacity var(--dur-base) var(--ease), stroke var(--dur-fast) var(--ease);
+}
+
+.atlas__node[data-dim="true"] .atlas__node-box,
+.atlas__node[data-dim="true"] .atlas__node-label {
+  opacity: 0.3;
+}
+
+.atlas__node:hover .atlas__node-box {
+  stroke: var(--ink);
+}
+
+.atlas__node-label {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  fill: var(--ink-secondary);
+  pointer-events: none;
+}
+
+.atlas__detail {
+  margin: var(--s-4) var(--s-6) var(--s-5);
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface-sunken);
+  border-radius: var(--r-sm);
+  font-size: var(--t-xs);
+  line-height: 1.7;
+  color: var(--ink-secondary);
+}
+
+.atlas__detail b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.atlas__clause {
+  color: var(--ink-faint);
+}
+
+.atlas__status {
+  font-family: var(--font-mono);
+  font-size: var(--t-micro);
+  letter-spacing: 0.06em;
+  margin-left: var(--s-2);
+}

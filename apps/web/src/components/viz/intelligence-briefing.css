@@ -1,0 +1,67 @@
+.briefing__meta {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-3);
+  padding-bottom: var(--s-4);
+  margin-bottom: var(--s-2);
+  border-bottom: 1px solid var(--rule);
+}
+
+.briefing__stamp {
+  font-size: var(--t-micro);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-secondary);
+}
+
+.briefing__source {
+  font-size: var(--t-micro);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-left: auto;
+}
+
+.briefing__lines {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.briefing__line {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: var(--s-3);
+  padding: var(--s-4) 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.briefing__line:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.briefing__index {
+  font-size: var(--t-micro);
+  color: var(--ink-faint);
+  padding-top: 3px;
+}
+
+/* Tone shows as a left accent on the number, never as coloured body text —
+   prose stays in ink so it is always legible. */
+.briefing__line[data-tone="elevation"] .briefing__index {
+  color: var(--dir-up);
+}
+.briefing__line[data-tone="reduction"] .briefing__index {
+  color: var(--dir-down);
+}
+.briefing__line[data-tone="governance"] .briefing__index {
+  color: var(--accent);
+}
+
+.briefing__line p {
+  font-size: var(--t-sm);
+  line-height: 1.62;
+  color: var(--ink-secondary);
+  max-width: 74ch;
+}

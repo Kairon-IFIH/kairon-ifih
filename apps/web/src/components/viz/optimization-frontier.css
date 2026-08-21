@@ -1,0 +1,145 @@
+.frontier {
+  position: relative;
+  width: 100%;
+}
+
+.frontier__svg {
+  display: block;
+}
+
+.frontier__grid {
+  stroke: var(--rule);
+  stroke-width: 1;
+}
+
+.frontier__tick {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  fill: var(--ink-faint);
+}
+
+.frontier__axis-title {
+  font-family: var(--font-ui);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  fill: var(--ink-faint);
+}
+
+.frontier__area {
+  fill: var(--accent);
+  fill-opacity: 0.07;
+}
+
+.frontier__line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+/* Past the budget the plot is washed out rather than clipped — the reader
+   still sees what was possible, and that it was out of reach. */
+.frontier__over-budget {
+  fill: var(--surface-sunken);
+  fill-opacity: 0.72;
+}
+
+.frontier__budget-line {
+  stroke: var(--ink-muted);
+  stroke-width: 1;
+}
+
+.frontier__budget-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  fill: var(--ink-muted);
+}
+
+.frontier__dot {
+  fill: var(--surface);
+  stroke: var(--accent);
+  stroke-width: 2;
+  transition: r var(--dur-fast) var(--ease);
+}
+
+.frontier__dot[data-selected="true"] {
+  fill: var(--accent);
+}
+
+.frontier__dot[data-focus="true"] {
+  stroke: var(--ink);
+}
+
+.frontier__marker-drop {
+  stroke: var(--accent);
+  stroke-width: 1;
+  stroke-opacity: 0.4;
+}
+
+.frontier__marker-label {
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 500;
+  fill: var(--accent);
+}
+
+.frontier__tip {
+  position: absolute;
+  transform: translateX(-50%);
+  background: var(--surface-raised);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--r-sm);
+  box-shadow: var(--lift-md);
+  padding: var(--s-3) var(--s-4);
+  min-width: 222px;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.frontier__tip-name {
+  font-family: var(--font-display);
+  font-size: var(--t-sm);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.frontier__tip-state {
+  font-size: var(--t-micro);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-top: 2px;
+}
+
+.frontier__tip-state[data-selected="true"] {
+  color: var(--accent);
+}
+
+.frontier__tip-rows {
+  margin-top: var(--s-3);
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--rule);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.frontier__tip-rows > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-4);
+  font-size: var(--t-xs);
+}
+
+.frontier__tip-rows dt {
+  color: var(--ink-muted);
+}
+
+.frontier__tip-rows dd {
+  color: var(--ink);
+  font-weight: 500;
+}

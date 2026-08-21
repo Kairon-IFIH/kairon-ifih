@@ -1,0 +1,115 @@
+.river {
+  position: relative;
+  width: 100%;
+}
+
+.river__svg {
+  display: block;
+  overflow: visible;
+}
+
+.river__grid {
+  stroke: var(--rule);
+  stroke-width: 1;
+}
+
+.river__ytick,
+.river__xtick {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  fill: var(--ink-faint);
+}
+
+.river__fill--residual {
+  fill: var(--indigo-600);
+  fill-opacity: 0.9;
+}
+
+/* The 2px separation between stacked fills is drawn as a surface-coloured
+   stroke on the upper band, not a border — per the mark spec. */
+.river__fill--absorbed {
+  fill: var(--indigo-200);
+  stroke: var(--surface);
+  stroke-width: 2;
+}
+
+.river__line {
+  fill: none;
+  stroke: var(--indigo-700);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.river__crosshair line {
+  stroke: var(--ink);
+  stroke-width: 1;
+  stroke-opacity: 0.34;
+}
+
+.river__dot {
+  fill: var(--ink);
+  stroke: var(--surface);
+  stroke-width: 2;
+}
+
+.river__tooltip {
+  position: absolute;
+  transform: translateX(-50%);
+  background: var(--surface-raised);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--r-sm);
+  box-shadow: var(--lift-md);
+  padding: var(--s-3) var(--s-4);
+  min-width: 178px;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.river__tooltip-time {
+  font-size: var(--t-micro);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-bottom: var(--s-2);
+}
+
+.river__tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--t-xs);
+  color: var(--ink-secondary);
+  line-height: 1.8;
+}
+
+.river__tooltip-row b {
+  margin-left: auto;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.river__tooltip-row--muted {
+  margin-top: var(--s-2);
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--rule);
+  color: var(--ink-muted);
+}
+
+.river__swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 1px;
+  flex-shrink: 0;
+}
+
+.river__swatch--residual {
+  background: var(--indigo-600);
+}
+.river__swatch--absorbed {
+  background: var(--indigo-200);
+}
+.river__swatch--inherent {
+  background: var(--indigo-700);
+}

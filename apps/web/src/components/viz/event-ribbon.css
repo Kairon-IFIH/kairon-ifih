@@ -1,0 +1,55 @@
+.ribbon {
+  position: relative;
+  width: 100%;
+}
+
+.ribbon__svg {
+  display: block;
+}
+
+.ribbon__base {
+  stroke: var(--rule-strong);
+  stroke-width: 1;
+}
+
+.ribbon__tick {
+  transition: opacity var(--dur-fast) var(--ease);
+}
+
+.ribbon__tick[data-dim="true"] {
+  opacity: 0.3;
+}
+
+.ribbon__tick-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  fill: var(--ink-faint);
+}
+
+.ribbon__tip {
+  position: absolute;
+  top: -6px;
+  transform: translateX(-50%);
+  background: var(--surface-raised);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--r-sm);
+  box-shadow: var(--lift-md);
+  padding: var(--s-2) var(--s-3);
+  white-space: nowrap;
+  z-index: 4;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.ribbon__tip b {
+  font-size: var(--t-xs);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.ribbon__tip .num {
+  font-size: var(--t-micro);
+  color: var(--ink-muted);
+}

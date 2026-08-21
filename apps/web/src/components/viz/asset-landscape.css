@@ -1,0 +1,115 @@
+.landscape {
+  position: relative;
+  width: 100%;
+}
+
+.landscape__svg {
+  display: block;
+}
+
+.landscape__group-label {
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  fill: var(--ink-muted);
+}
+
+.landscape__group-count {
+  font-size: 10px;
+  fill: var(--ink-faint);
+}
+
+.landscape__cell {
+  cursor: pointer;
+}
+
+.landscape__cell rect {
+  transition: opacity var(--dur-fast) var(--ease);
+}
+
+.landscape__cell[data-dim="true"] rect,
+.landscape__cell[data-dim="true"] text {
+  opacity: 0.32;
+}
+
+.landscape__cell:hover rect {
+  stroke: var(--ink);
+  stroke-width: 1.5;
+  stroke-dasharray: none;
+}
+
+.landscape__cell-label {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  fill: var(--ink-secondary);
+  pointer-events: none;
+}
+
+/* On a filled cell the label sits on a saturated severity colour, so it
+   flips to the light ink to stay legible. */
+.landscape__cell-label[data-on-fill="true"] {
+  fill: var(--surface);
+  font-weight: 500;
+}
+
+.landscape__tip {
+  position: absolute;
+  transform: translateX(-50%);
+  background: var(--surface-raised);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--r-sm);
+  box-shadow: var(--lift-md);
+  padding: var(--s-3) var(--s-4);
+  min-width: 210px;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.landscape__tip-name {
+  font-family: var(--font-display);
+  font-size: var(--t-sm);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.landscape__tip-meta {
+  font-size: var(--t-micro);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-top: 2px;
+}
+
+.landscape__tip-rows {
+  margin-top: var(--s-3);
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--rule);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.landscape__tip-rows > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-4);
+  font-size: var(--t-xs);
+}
+
+.landscape__tip-rows dt {
+  color: var(--ink-muted);
+}
+
+.landscape__tip-rows dd {
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.landscape__tip-unscored {
+  color: var(--ink-faint) !important;
+  font-weight: 400 !important;
+  font-style: italic;
+}

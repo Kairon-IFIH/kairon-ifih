@@ -1,0 +1,93 @@
+.topo {
+  position: relative;
+  width: 100%;
+}
+
+.topo__svg {
+  display: block;
+}
+
+.topo__grid {
+  stroke: var(--rule);
+  stroke-width: 1;
+}
+
+.topo__base {
+  stroke: var(--rule-strong);
+  stroke-width: 1;
+}
+
+.topo__ytick {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  fill: var(--ink-faint);
+}
+
+.topo__xtick {
+  font-family: var(--font-ui);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  fill: var(--ink-faint);
+}
+
+/* Translucent fills so overlapping terrain reads as depth rather than
+   occlusion — where two peaks overlap the colour deepens, which is exactly
+   the "correlated exposure in the same place" signal. */
+.topo__peak {
+  fill-opacity: 0.5;
+  transition: fill-opacity var(--dur-fast) var(--ease);
+}
+
+.topo__peak[data-dim="true"] {
+  fill-opacity: 0.16;
+}
+
+.topo__peak[data-focus="true"] {
+  fill-opacity: 0.88;
+}
+
+.topo__tip {
+  position: absolute;
+  transform: translateX(-50%);
+  background: var(--surface-raised);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--r-sm);
+  box-shadow: var(--lift-md);
+  padding: var(--s-3) var(--s-4);
+  min-width: 206px;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.topo__tip-name {
+  font-family: var(--font-display);
+  font-size: var(--t-sm);
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: var(--s-2);
+}
+
+.topo__tip-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.topo__tip-rows > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-4);
+  font-size: var(--t-xs);
+}
+
+.topo__tip-rows dt {
+  color: var(--ink-muted);
+}
+
+.topo__tip-rows dd {
+  font-weight: 500;
+  color: var(--ink);
+}

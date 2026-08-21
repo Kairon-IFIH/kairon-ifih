@@ -1,0 +1,84 @@
+.constellation {
+  position: relative;
+  width: 100%;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(63, 77, 144, 0.045), transparent 62%);
+}
+
+.constellation__svg {
+  display: block;
+}
+
+.constellation__link {
+  stroke: var(--rule-strong);
+  stroke-width: 1;
+  transition: stroke-opacity var(--dur-base) var(--ease), stroke var(--dur-base) var(--ease);
+}
+
+.constellation__link[data-dim="true"] {
+  stroke-opacity: 0.28;
+}
+
+.constellation__node {
+  cursor: pointer;
+}
+
+/* The 2px surface ring that keeps overlapping marks separable. */
+.constellation__node-ring > * {
+  stroke: var(--surface);
+  stroke-width: 2;
+  paint-order: stroke fill;
+  transition: opacity var(--dur-base) var(--ease);
+}
+
+.constellation__node[data-dim="true"] .constellation__node-ring {
+  opacity: 0.24;
+}
+
+.constellation__node[data-focused="true"] .constellation__node-ring > * {
+  stroke: var(--ink);
+  stroke-width: 2;
+}
+
+.constellation__inspector {
+  position: absolute;
+  transform: translateX(-50%);
+  background: var(--surface-raised);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--r-sm);
+  box-shadow: var(--lift-md);
+  padding: var(--s-3) var(--s-4);
+  min-width: 168px;
+  max-width: 240px;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.constellation__inspector-kind {
+  font-size: var(--t-micro);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.constellation__inspector-label {
+  font-family: var(--font-display);
+  font-size: var(--t-sm);
+  font-weight: 600;
+  color: var(--ink);
+  margin-top: 3px;
+  overflow-wrap: anywhere;
+}
+
+.constellation__inspector-sev {
+  font-family: var(--font-mono);
+  font-size: var(--t-micro);
+  letter-spacing: 0.06em;
+  margin-top: var(--s-2);
+}
+
+.constellation__inspector-links {
+  font-size: var(--t-micro);
+  color: var(--ink-muted);
+  margin-top: var(--s-1);
+}

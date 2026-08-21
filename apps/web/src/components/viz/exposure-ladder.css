@@ -1,0 +1,177 @@
+.ladder {
+  display: flex;
+  flex-direction: column;
+}
+
+.ladder__head,
+.ladder__row {
+  display: grid;
+  grid-template-columns: minmax(120px, 190px) minmax(0, 1fr) 92px;
+  align-items: center;
+  gap: var(--s-4);
+}
+
+.ladder__head {
+  padding: 0 0 var(--s-3);
+  border-bottom: 1px solid var(--rule);
+  font-size: var(--t-micro);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.ladder__head-value {
+  text-align: right;
+}
+
+.ladder__row {
+  padding: var(--s-3) 0;
+  border-bottom: 1px solid var(--rule);
+  transition: opacity var(--dur-fast) var(--ease);
+}
+
+.ladder__row:last-of-type {
+  border-bottom: none;
+}
+
+.ladder__row[data-dim="true"] {
+  opacity: 0.42;
+}
+
+.ladder__label {
+  font-size: var(--t-sm);
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ladder__track {
+  position: relative;
+  height: 16px;
+  display: flex;
+  align-items: center;
+}
+
+.ladder__inherent {
+  position: absolute;
+  left: 0;
+  height: 14px;
+  background: var(--indigo-100);
+  border-radius: var(--r-xs);
+}
+
+/* The residual bar sits on the inherent track with a 2px surface gap, so the
+   absorbed portion reads as a distinct region rather than a shared edge. */
+.ladder__residual {
+  position: absolute;
+  left: 0;
+  height: 14px;
+  border-radius: var(--r-xs);
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+.ladder__eal {
+  position: absolute;
+  top: -2px;
+  width: 2px;
+  height: 20px;
+  background: var(--ink);
+  border-radius: var(--r-pill);
+  box-shadow: 0 0 0 2px var(--surface);
+  transform: translateX(-1px);
+}
+
+.ladder__value {
+  text-align: right;
+  font-size: var(--t-xs);
+  color: var(--ink-secondary);
+}
+
+.ladder__tip {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  background: var(--surface-raised);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--r-sm);
+  box-shadow: var(--lift-md);
+  padding: var(--s-3) var(--s-4);
+  min-width: 224px;
+  z-index: 4;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.ladder__tip > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-4);
+  font-size: var(--t-xs);
+  color: var(--ink-muted);
+}
+
+.ladder__tip b {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.ladder__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-5);
+  margin-top: var(--s-5);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--rule);
+}
+
+.ladder__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--t-xs);
+  color: var(--ink-muted);
+}
+
+.ladder__legend-mark {
+  flex-shrink: 0;
+  border-radius: 1px;
+}
+
+.ladder__legend-mark--inherent {
+  width: 16px;
+  height: 9px;
+  background: var(--indigo-100);
+}
+
+.ladder__legend-mark--residual {
+  display: inline-flex;
+  height: 9px;
+  overflow: hidden;
+  border-radius: 1px;
+}
+
+.ladder__legend-mark--residual i {
+  width: 5px;
+  height: 9px;
+}
+
+.ladder__legend-mark--eal {
+  width: 2px;
+  height: 13px;
+  background: var(--ink);
+}
+
+@media (max-width: 720px) {
+  .ladder__head,
+  .ladder__row {
+    grid-template-columns: minmax(0, 1fr) 84px;
+  }
+  .ladder__track {
+    grid-column: 1 / -1;
+    order: 3;
+  }
+}
