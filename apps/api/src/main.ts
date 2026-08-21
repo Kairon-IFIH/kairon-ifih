@@ -34,9 +34,14 @@ import {
 import { createAuditModule, createAuditRouter, InMemoryAuditEventRepository } from "@kairon/audit";
 import { createNotificationModule, createNotificationRouter, PrismaNotificationRepository } from "@kairon/notification";
 
+import { createLogger } from "@kairon/logger";
+
 import { requireAuth } from "./middleware/auth.middleware";
 import { tenantContextMiddleware } from "./middleware/tenant-context.middleware";
 import { errorHandlerMiddleware } from "./middleware/error-handler.middleware";
+import { requestLoggerMiddleware } from "./middleware/request-logger.middleware";
+
+const log = createLogger("bootstrap");
 
 /**
  * Composition root: this is the only file in the whole system allowed to know
@@ -104,13 +109,20 @@ async function createApp() {
   });
 
   const seed = await seedDemoTenant({ tenantRepository, userRepository, roleRepository });
-  // eslint-disable-next-line no-console
-  console.log(`Demo login ready: ${seed.adminEmail} / ${seed.adminPassword} (tenant: ${seed.tenantId})`);
+  log.info("demo tenant seeded", { tenantId: seed.tenantId, adminEmail: seed.adminEmail });
+  // Deliberately NOT via the structured logger (which would redact it, correctly)
+  // — this is a one-time operator convenience for the hackathon demo, not an
+  // application log line, and must never run when NODE_ENV=production.
+  if (process.env.NODE_ENV !== "production") {
+    // eslint-disable-next-line no-console
+    console.log(`Demo login: ${seed.adminEmail} / ${seed.adminPassword}`);
+  }
 
   const app = express();
   app.use(helmet());
   app.use(cors());
   app.use(express.json());
+  app.use(requestLoggerMiddleware());
 
   // /auth is the only unauthenticated module (ARCHITECTURE.md §7).
   app.use("/api/v1", createIdentityRouter(identity));
@@ -135,8 +147,7 @@ if (require.main === module) {
   const port = Number(process.env.PORT ?? 3000);
   createApp().then((app) => {
     app.listen(port, () => {
-      // eslint-disable-next-line no-console
-      console.log(`KAIRON API listening on :${port}`);
+      log.info("KAIRON API listening", { port });
     });
   });
 }

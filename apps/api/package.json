@@ -13,6 +13,7 @@
     "@kairon/shared-kernel": "*",
     "@kairon/event-contracts": "*",
     "@kairon/api-contracts": "*",
+    "@kairon/logger": "*",
     "@kairon/identity": "*",
     "@kairon/asset": "*",
     "@kairon/compliance": "*",

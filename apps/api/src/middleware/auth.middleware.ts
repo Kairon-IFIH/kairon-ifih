@@ -1,6 +1,9 @@
 import type { NextFunction, Request, Response } from "express";
 import { ForbiddenError, UnauthorizedError } from "@kairon/shared-kernel";
 import { verifyAccessToken, type AccessTokenClaims } from "@kairon/identity";
+import { createLogger } from "@kairon/logger";
+
+const log = createLogger("auth");
 
 export type RequestWithClaims = Request & { accessTokenClaims: AccessTokenClaims };
 
@@ -13,6 +16,7 @@ export function requireAuth() {
   return (req: Request, _res: Response, next: NextFunction): void => {
     const header = req.headers.authorization;
     if (!header?.startsWith("Bearer ")) {
+      log.warn("authorization failed — missing bearer token", { path: req.path });
       next(new UnauthorizedError());
       return;
     }
@@ -21,6 +25,7 @@ export function requireAuth() {
       (req as RequestWithClaims).accessTokenClaims = claims;
       next();
     } catch (err) {
+      log.warn("authorization failed — invalid or expired token", { path: req.path });
       next(err);
     }
   };
@@ -37,6 +42,12 @@ export function requireRole(...allowedRoles: string[]) {
   return (req: Request, _res: Response, next: NextFunction): void => {
     const claims = (req as RequestWithClaims).accessTokenClaims;
     if (!claims.roles.some((role) => allowedRoles.includes(role))) {
+      log.warn("authorization failed — insufficient role", {
+        path: req.path,
+        userId: claims.sub,
+        requiredRoles: allowedRoles,
+        actualRoles: claims.roles,
+      });
       next(new ForbiddenError(allowedRoles.join(" or ")));
       return;
     }
