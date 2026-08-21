@@ -41,12 +41,15 @@ export type ListAssetsQuery = z.infer<typeof listAssetsQuerySchema>;
 // ---- compliance ----
 export const createComplianceMappingSchema = z.object({
   assetId: z.string().uuid(),
-  controlId: z.string().uuid(),
+  // Controls are platform-owned reference data with stable human-readable
+  // codes (e.g. "dpdp-control-encryption"), not tenant-generated UUIDs —
+  // see packages/compliance/src/seed.ts.
+  controlId: z.string().min(1),
 });
 export type CreateComplianceMappingRequest = z.infer<typeof createComplianceMappingSchema>;
 
 export const listComplianceGapsQuerySchema = paginationQuerySchema.extend({
-  frameworkId: z.string().uuid().optional(),
+  frameworkId: z.string().min(1).optional(),
   gapStatus: z.enum(["COMPLIANT", "GAP", "PARTIAL"]).optional(),
 });
 export type ListComplianceGapsQuery = z.infer<typeof listComplianceGapsQuerySchema>;
