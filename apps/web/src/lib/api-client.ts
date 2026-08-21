@@ -3,17 +3,45 @@ import type { ApiError, ApiResponse, AuthTokens } from "../types/api";
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000/api/v1";
 
 /**
- * Tokens live in module memory only — never localStorage/sessionStorage.
- * A hard refresh logs the user out; POST /auth/refresh silently re-issues
- * an access token within a session (see refreshAccessToken below).
+ * Tokens live in sessionStorage: gone when the tab/browser closes, but
+ * survive a refresh or reopening the URL in the same tab — a plain reload
+ * no longer requires logging back in. Still never localStorage (that would
+ * persist indefinitely across restarts). Module-level variables mirror
+ * storage for synchronous reads without a sessionStorage round-trip on
+ * every request; storage read happens once, at module load.
  */
-let accessToken: string | null = null;
-let refreshToken: string | null = null;
+const ACCESS_TOKEN_KEY = "kairon.accessToken";
+const REFRESH_TOKEN_KEY = "kairon.refreshToken";
+
+function readStoredToken(key: string): string | null {
+  try {
+    return sessionStorage.getItem(key);
+  } catch {
+    // Storage can throw in a locked-down context (private-mode Safari, some
+    // embedded webviews) — fall back to memory-only rather than crash.
+    return null;
+  }
+}
+
+let accessToken: string | null = readStoredToken(ACCESS_TOKEN_KEY);
+let refreshToken: string | null = readStoredToken(REFRESH_TOKEN_KEY);
 let onUnauthorized: (() => void) | null = null;
 
 export function setTokens(tokens: AuthTokens | null): void {
   accessToken = tokens?.accessToken ?? null;
   refreshToken = tokens?.refreshToken ?? null;
+  try {
+    if (tokens) {
+      sessionStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken);
+      sessionStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken);
+    } else {
+      sessionStorage.removeItem(ACCESS_TOKEN_KEY);
+      sessionStorage.removeItem(REFRESH_TOKEN_KEY);
+    }
+  } catch {
+    // Same fallback as above — the in-memory copy above still works for
+    // this tab's lifetime even if persistence itself is unavailable.
+  }
 }
 
 export function getAccessToken(): string | null {

@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { setTokens, onSessionExpired } from "./api-client";
+import { setTokens, getAccessToken, onSessionExpired } from "./api-client";
 import { login as loginRequest } from "./endpoints";
 
 interface AuthContextValue {
@@ -11,7 +11,9 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // api-client reads any sessionStorage-persisted token at module load, so a
+  // refresh has one already in memory here before this component even mounts.
+  const [isAuthenticated, setIsAuthenticated] = useState(() => getAccessToken() !== null);
 
   useEffect(() => {
     onSessionExpired(() => setIsAuthenticated(false));
