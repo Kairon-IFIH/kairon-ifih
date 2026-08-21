@@ -1,0 +1,140 @@
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-md);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.panel__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-6);
+  padding: var(--s-5) var(--s-6) var(--s-4);
+  border-bottom: 1px solid var(--rule);
+}
+
+.panel__heading {
+  min-width: 0;
+}
+
+.panel__eyebrow {
+  display: block;
+  font-size: var(--t-eyebrow);
+  font-weight: 500;
+  letter-spacing: var(--track-eyebrow);
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-bottom: var(--s-2);
+}
+
+.panel__title {
+  font-family: var(--font-display);
+  font-size: var(--t-md);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.panel__caption {
+  margin-top: var(--s-2);
+  font-size: var(--t-xs);
+  line-height: 1.55;
+  color: var(--ink-muted);
+  max-width: 62ch;
+}
+
+.panel__aside {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.panel__body {
+  padding: var(--s-6);
+  flex: 1;
+  min-width: 0;
+}
+
+.panel__body--bleed {
+  padding: 0;
+}
+
+.panel__empty {
+  padding: var(--s-10) var(--s-6);
+  text-align: center;
+  font-size: var(--t-sm);
+  color: var(--ink-muted);
+  line-height: 1.6;
+  max-width: 52ch;
+  margin: 0 auto;
+}
+
+.panel__empty a,
+.panel__empty button {
+  color: var(--accent);
+  font-weight: 500;
+  border-bottom: 1px solid var(--accent-wash-strong);
+  transition: border-color var(--dur-fast) var(--ease);
+}
+
+.panel__empty a:hover,
+.panel__empty button:hover {
+  border-bottom-color: var(--accent);
+}
+
+/* ---- legend ---- */
+
+.legend {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-4);
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--t-xs);
+  color: var(--ink-secondary);
+  white-space: nowrap;
+}
+
+.legend-item__mark {
+  flex-shrink: 0;
+  border-radius: 1px;
+}
+
+.legend-item__mark--square {
+  width: 9px;
+  height: 9px;
+}
+
+.legend-item__mark--line {
+  width: 14px;
+  height: 2px;
+  border-radius: var(--r-pill);
+}
+
+.legend-item__mark--dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--r-pill);
+}
+
+.legend-item__mark--diamond {
+  width: 8px;
+  height: 8px;
+  transform: rotate(45deg);
+}
+
+.legend-item__mark--ring {
+  width: 9px;
+  height: 9px;
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 2px var(--ink-muted);
+}

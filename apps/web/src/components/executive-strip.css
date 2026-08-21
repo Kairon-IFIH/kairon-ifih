@@ -1,0 +1,167 @@
+.strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+
+/* Hairline dividers instead of gaps — one instrument, not four cards. */
+.strip__cell {
+  padding: var(--s-5) var(--s-6);
+  border-left: 1px solid var(--rule);
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.strip__cell:first-child {
+  border-left: none;
+}
+
+.strip__label {
+  font-size: var(--t-eyebrow);
+  font-weight: 500;
+  letter-spacing: var(--track-eyebrow);
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-bottom: var(--s-3);
+}
+
+.strip__value-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  min-width: 0;
+}
+
+.strip__value {
+  font-size: var(--t-xl);
+  line-height: 1;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.strip__cell[data-lead="true"] .strip__value {
+  font-size: var(--t-hero);
+}
+
+.strip__unit {
+  font-size: var(--t-xs);
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
+.strip__direction {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+  font-size: var(--t-xs);
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+/* Direction is stated in words as well as colour + glyph — never colour alone.
+   Risk RISING is the bad direction here, hence up = red. */
+.strip__direction[data-tone="up"] {
+  color: var(--dir-up);
+}
+.strip__direction[data-tone="down"] {
+  color: var(--dir-down);
+}
+.strip__direction[data-tone="flat"] {
+  color: var(--dir-flat);
+}
+
+.strip__direction span[aria-hidden="true"] {
+  font-size: 0.5rem;
+  line-height: 1;
+}
+
+.strip__visual {
+  margin-top: var(--s-4);
+}
+
+.strip__parts {
+  margin-top: auto;
+  padding-top: var(--s-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.strip__part {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  font-size: var(--t-xs);
+  color: var(--ink-muted);
+}
+
+.strip__part dt {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* Dotted leader between label and figure — the ledger detail that makes it
+   read as an institutional readout rather than a web-app list. */
+.strip__leader {
+  flex: 1;
+  min-width: var(--s-3);
+  border-bottom: 1px dotted var(--rule-strong);
+  transform: translateY(-0.3em);
+}
+
+.strip__part dd {
+  color: var(--ink-secondary);
+  flex-shrink: 0;
+  font-size: var(--t-xs);
+}
+
+.sparkline {
+  display: block;
+  overflow: visible;
+}
+
+.sparkline--flat {
+  border-bottom: 1px solid var(--rule-strong);
+}
+
+@media (max-width: 1180px) {
+  .strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .strip__cell:nth-child(3) {
+    border-left: none;
+  }
+  .strip__cell:nth-child(n + 3) {
+    border-top: 1px solid var(--rule);
+  }
+}
+
+@media (max-width: 640px) {
+  .strip {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .strip__cell {
+    border-left: none;
+  }
+  .strip__cell + .strip__cell {
+    border-top: 1px solid var(--rule);
+  }
+}
+
+/* Word values (a class name, a state) sit at body scale — the figure size is
+   reserved for actual figures. */
+.strip__value--text {
+  font-family: var(--font-display);
+  font-size: var(--t-md);
+  font-weight: 600;
+  letter-spacing: var(--track-tight);
+  line-height: 1.2;
+}
