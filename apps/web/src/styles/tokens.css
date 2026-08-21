@@ -1,109 +1,227 @@
 /**
- * KAIRON design tokens — "Institutional Lattice" direction.
- * Light mode: crisp, premium, banking-grade. The signature motif is the
- * lattice/mesh — a direct visual reference to lattice-based post-quantum
- * cryptography (Kyber/Dilithium), not decoration. Every color, type,
- * spacing, and motion value used anywhere in the app is declared here once.
- * Components reference tokens; they never hardcode a hex/oklch value.
+ * KAIRON design tokens — "Institutional Instrument".
+ *
+ * The product is a risk intelligence workstation, not an admin panel. That
+ * distinction drives every value here: warm paper surfaces instead of stark
+ * white cards, hairline rules instead of shadows, typography carrying the
+ * hierarchy instead of coloured chrome.
+ *
+ * COLOUR IS NOT EYEBALLED. The severity scale and the sequential ramp below
+ * were both run through the dataviz palette validator against this exact
+ * surface (#faf9f6) before being written down:
+ *
+ *   severity  → 4-slot categorical: lightness band PASS, chroma floor PASS,
+ *               CVD separation PASS (worst adjacent ΔE 11.7 deutan),
+ *               normal-vision floor PASS (worst adjacent ΔE 15.5).
+ *               `--sev-medium` sits at 2.3:1 on the surface — below the 3:1
+ *               bar — so severity ALWAYS ships with its text label beside it
+ *               (SeverityBadge, legends, axis labels). That is the documented
+ *               relief, not an oversight: never encode severity by hue alone.
+ *   indigo    → 5-step ordinal ramp: monotone lightness PASS, adjacent ΔL
+ *               PASS, light-end contrast 2.18:1 PASS, single-hue PASS.
+ *
+ * If you change a hex here, re-run the validator before committing it.
  */
 
 :root {
-  /* ---- surface ---- */
-  --surface-0: #f7f8fb; /* app / page background — cool off-white, not stark */
-  --surface-1: #ffffff; /* raised panel */
-  --surface-2: #ffffff; /* card */
-  --surface-3: #f1f3f9; /* hover/active surface */
-  --surface-inverse: #0b0f1a; /* dark sections on the landing page */
-  --surface-glass: oklch(1 0 0 / 0.72); /* frosted glass nav/sidebar */
+  /* ---- surfaces: warm paper, never pure white ---- */
+  --plane: #f2efe9; /* the desk the instrument sits on */
+  --surface: #faf9f6; /* panel / card — the validated chart surface */
+  --surface-raised: #fdfcfa; /* popovers, hover cards */
+  --surface-sunken: #edeae2; /* wells, inset tracks, table zebra */
+  --surface-ink: #191813; /* the one dark surface — landing page only */
 
-  /* ---- borders ---- */
-  --border-hairline: oklch(0.91 0.008 260);
-  --border-hairline-strong: oklch(0.82 0.015 260);
-  --border-glass: oklch(0.88 0.012 260);
+  /* ---- rules: hairlines do the work shadows used to ---- */
+  --rule: #e4e0d6;
+  --rule-strong: #d3cec0;
+  --rule-ink: rgba(25, 24, 19, 0.08);
 
-  /* ---- text ---- */
-  --text-primary: #0b0f1a;
-  --text-secondary: oklch(0.4 0.02 260);
-  --text-tertiary: oklch(0.56 0.02 260);
-  --text-on-accent: #ffffff;
-  --text-on-inverse: #f7f8fb;
-  --text-on-inverse-secondary: oklch(0.78 0.02 260);
+  /* ---- ink ---- */
+  --ink: #191813;
+  --ink-secondary: #56534b;
+  --ink-muted: #8a8377;
+  --ink-faint: #a9a396;
+  --ink-on-dark: #faf9f6;
+  --ink-on-accent: #faf9f6;
 
-  /* ---- accents ---- */
-  --accent-risk: oklch(0.56 0.2 25); /* amber-red: alert / high risk */
-  --accent-risk-dim: oklch(0.56 0.2 25 / 0.1);
-  --accent-safe: oklch(0.52 0.13 160); /* teal-green: safe / positive */
-  --accent-safe-dim: oklch(0.52 0.13 160 / 0.1);
-  --accent-data: oklch(0.47 0.19 265); /* lattice indigo: brand, charts, gauges */
-  --accent-data-dim: oklch(0.47 0.19 265 / 0.1);
-  --accent-data-2: oklch(0.64 0.16 235); /* secondary lattice blue — gradients only */
-  --accent-warn: oklch(0.64 0.15 78); /* amber: medium severity */
-  --accent-warn-dim: oklch(0.64 0.15 78 / 0.1);
+  /* ---- severity scale (validated 4-slot) ---- */
+  --sev-low: #0d8a6b;
+  --sev-medium: #c9a227;
+  --sev-high: #cf5a22;
+  --sev-critical: #96302c;
 
-  /* ---- severity scale (risk levels) ---- */
-  --severity-critical: var(--accent-risk);
-  --severity-high: oklch(0.58 0.19 40);
-  --severity-medium: var(--accent-warn);
-  --severity-low: var(--accent-safe);
+  --sev-low-wash: rgba(13, 138, 107, 0.1);
+  --sev-medium-wash: rgba(201, 162, 39, 0.12);
+  --sev-high-wash: rgba(207, 90, 34, 0.1);
+  --sev-critical-wash: rgba(150, 48, 44, 0.1);
+
+  /* ---- sequential indigo ramp (validated ordinal) ---- */
+  --indigo-100: #e6e9f5;
+  --indigo-200: #cdd3ea;
+  --indigo-300: #9fa9d8;
+  --indigo-400: #7b88c6;
+  --indigo-500: #5a68ae;
+  --indigo-600: #3f4d90;
+  --indigo-700: #2c3970;
+
+  /* ---- accent: the single interactive hue ---- */
+  --accent: #3f4d90;
+  --accent-hover: #2c3970;
+  --accent-wash: rgba(63, 77, 144, 0.09);
+  --accent-wash-strong: rgba(63, 77, 144, 0.16);
+
+  /* ---- direction cues (delta up/down) ---- */
+  --dir-up: #96302c; /* risk rising is BAD — red, not green */
+  --dir-down: #0d8a6b; /* risk falling is GOOD */
+  --dir-flat: #8a8377;
 
   /* ---- type families ---- */
-  --font-mono: "DM Mono", "SF Mono", ui-monospace, monospace;
-  --font-ui: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: "General Sans", "Inter Tight", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-ui: "Inter Tight", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", monospace;
 
   /* ---- type scale ---- */
-  --text-xs: 0.6875rem; /* 11px — labels, eyebrows */
-  --text-sm: 0.8125rem; /* 13px — secondary UI */
-  --text-base: 0.9375rem; /* 15px — body */
-  --text-lg: 1.125rem; /* 18px — section headers */
-  --text-xl: 1.5rem; /* 24px — page titles */
-  --text-kpi: 2.5rem; /* 40px — KPI numbers */
-  --text-gauge: 3.5rem; /* 56px — Q-Risk score */
-  --text-display: clamp(2.75rem, 5vw, 4.75rem); /* landing hero headline */
+  --t-micro: 0.625rem; /* 10px — matrix ticks, dense axis labels */
+  --t-eyebrow: 0.6875rem; /* 11px — section eyebrows */
+  --t-xs: 0.75rem; /* 12px — meta, captions */
+  --t-sm: 0.8125rem; /* 13px — dense UI, table cells */
+  --t-base: 0.875rem; /* 14px — body */
+  --t-md: 1rem; /* 16px — panel titles */
+  --t-lg: 1.25rem; /* 20px — page titles */
+  --t-xl: 1.75rem; /* 28px — strip figures */
+  --t-hero: 2.75rem; /* 44px — the one hero figure per screen */
+  --t-display: clamp(2.75rem, 5vw, 4.75rem); /* landing hero */
 
   /* ---- tracking ---- */
-  --tracking-label: 0.08em;
+  --track-eyebrow: 0.1em;
+  --track-tight: -0.011em;
+  --track-display: -0.022em;
 
   /* ---- spacing (4px base) ---- */
-  --space-1: 0.25rem;
-  --space-2: 0.5rem;
-  --space-3: 0.75rem;
-  --space-4: 1rem;
-  --space-5: 1.25rem;
-  --space-6: 1.5rem;
-  --space-8: 2rem;
-  --space-10: 2.5rem;
-  --space-12: 3rem;
-  --space-16: 4rem;
-  --space-24: 6rem;
-  --space-32: 8rem;
+  --s-1: 0.25rem;
+  --s-2: 0.5rem;
+  --s-3: 0.75rem;
+  --s-4: 1rem;
+  --s-5: 1.25rem;
+  --s-6: 1.5rem;
+  --s-7: 1.75rem;
+  --s-8: 2rem;
+  --s-10: 2.5rem;
+  --s-12: 3rem;
+  --s-16: 4rem;
+  --s-24: 6rem;
+  --s-32: 8rem;
 
-  /* ---- radius: sharp for the product instrument, generous for the landing page ---- */
-  --radius-sharp: 2px;
-  --radius-glass: 8px;
-  --radius-md: 14px;
-  --radius-lg: 22px;
-  --radius-pill: 999px;
+  /* ---- radius: an instrument is nearly square ---- */
+  --r-xs: 2px;
+  --r-sm: 3px;
+  --r-md: 6px;
+  --r-lg: 10px;
+  --r-pill: 999px;
 
-  /* ---- motion ---- */
-  --ease-precision: cubic-bezier(0.22, 1, 0.36, 1);
-  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
-  --duration-fast: 120ms;
-  --duration-base: 240ms;
-  --duration-slow: 560ms;
+  /* ---- motion: subtle, professional, never bouncy ---- */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-inout: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-fast: 110ms;
+  --dur-base: 220ms;
+  --dur-slow: 520ms;
 
-  /* ---- elevation ---- */
-  --shadow-glass: 0 20px 60px -20px oklch(0.5 0.05 260 / 0.25);
-  --shadow-sm: 0 1px 2px oklch(0.2 0.02 260 / 0.06), 0 1px 1px oklch(0.2 0.02 260 / 0.04);
-  --shadow-md: 0 8px 24px -8px oklch(0.2 0.02 260 / 0.14), 0 2px 8px -2px oklch(0.2 0.02 260 / 0.08);
-  --shadow-lg: 0 24px 64px -16px oklch(0.2 0.02 260 / 0.22), 0 8px 24px -8px oklch(0.2 0.02 260 / 0.1);
+  /* ---- elevation: used sparingly, warm-tinted, never grey ---- */
+  --lift-sm: 0 1px 2px rgba(25, 24, 19, 0.05);
+  --lift-md: 0 4px 16px -6px rgba(25, 24, 19, 0.12), 0 1px 3px rgba(25, 24, 19, 0.05);
+  --lift-lg: 0 18px 48px -18px rgba(25, 24, 19, 0.22), 0 4px 12px -4px rgba(25, 24, 19, 0.08);
 
   color-scheme: light;
+
+  /* ------------------------------------------------------------------ *
+   * Legacy aliases.
+   *
+   * The pre-login landing and login screens were built against the older
+   * token names and are deliberately OUT of scope for the workstation
+   * redesign. Rather than half-migrate them (and risk breaking the first
+   * screen anyone sees), their vocabulary is mapped onto the new palette
+   * here. Nothing added after this comment should be used in new work —
+   * post-login surfaces use the tokens above.
+   * ------------------------------------------------------------------ */
+
+  --surface-0: var(--plane);
+  --surface-1: var(--surface);
+  --surface-2: var(--surface);
+  --surface-3: var(--surface-sunken);
+  --surface-glass: rgba(250, 249, 246, 0.78);
+  --surface-inverse: var(--surface-ink);
+
+  --border-hairline: var(--rule);
+  --border-hairline-strong: var(--rule-strong);
+  --border-glass: var(--rule);
+
+  --text-primary: var(--ink);
+  --text-secondary: var(--ink-secondary);
+  --text-tertiary: var(--ink-muted);
+  --text-on-accent: var(--ink-on-accent);
+  --text-on-inverse: var(--ink-on-dark);
+  --text-on-inverse-secondary: #b5afa1;
+
+  --accent-data: var(--accent);
+  --accent-data-2: var(--indigo-400);
+  --accent-data-dim: var(--accent-wash);
+  --accent-risk: var(--sev-critical);
+  --accent-risk-dim: var(--sev-critical-wash);
+  --accent-safe: var(--sev-low);
+  --accent-safe-dim: var(--sev-low-wash);
+  --accent-warn: var(--sev-medium);
+  --accent-warn-dim: var(--sev-medium-wash);
+
+  --severity-critical: var(--sev-critical);
+  --severity-high: var(--sev-high);
+  --severity-medium: var(--sev-medium);
+  --severity-low: var(--sev-low);
+
+  --text-xs: var(--t-eyebrow);
+  --text-sm: var(--t-sm);
+  --text-base: var(--t-base);
+  --text-lg: 1.125rem;
+  --text-xl: var(--t-lg);
+  --text-kpi: 2.5rem;
+  --text-gauge: 3.5rem;
+  --text-display: var(--t-display);
+  --tracking-label: var(--track-eyebrow);
+
+  --space-1: var(--s-1);
+  --space-2: var(--s-2);
+  --space-3: var(--s-3);
+  --space-4: var(--s-4);
+  --space-5: var(--s-5);
+  --space-6: var(--s-6);
+  --space-8: var(--s-8);
+  --space-10: var(--s-10);
+  --space-12: var(--s-12);
+  --space-16: var(--s-16);
+  --space-24: var(--s-24);
+  --space-32: var(--s-32);
+
+  --radius-sharp: var(--r-xs);
+  --radius-glass: var(--r-md);
+  --radius-md: var(--r-lg);
+  --radius-lg: 22px;
+  --radius-pill: var(--r-pill);
+
+  --duration-fast: var(--dur-fast);
+  --duration-base: var(--dur-base);
+  --duration-slow: var(--dur-slow);
+  --ease-precision: var(--ease);
+  --ease-out-expo: var(--ease);
+
+  --shadow-sm: var(--lift-sm);
+  --shadow-md: var(--lift-md);
+  --shadow-lg: var(--lift-lg);
+  --shadow-glass: var(--lift-lg);
 }
 
 @media (prefers-reduced-motion: reduce) {
   :root {
-    --duration-fast: 0ms;
-    --duration-base: 0ms;
-    --duration-slow: 0ms;
+    --dur-fast: 0ms;
+    --dur-base: 0ms;
+    --dur-slow: 0ms;
   }
 }
