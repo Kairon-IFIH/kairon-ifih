@@ -1,59 +1,106 @@
-# KAIRON — Deployment Architectures
+# KAIRON — Deployment
 
-## 1. Hackathon Deployment (today)
+## 1. Current deployment (single EC2, automated)
 
-The current MVP (`apps/api`) runs entirely on in-memory repositories and an
-in-memory event publisher (see `apps/api/src/main.ts`) — no Postgres, no
-Redis, no queue infra is actually required for the demo to work. That
-collapses the AWS footprint from `ARCHITECTURE.md` §10 down to one thing.
+One EC2 instance in `ap-south-1`, running three containers behind one Elastic
+IP. Provisioned and managed entirely by `infra/aws/kairon.py` (boto3); deployed
+on every push to `main` by `.github/workflows/deploy.yml`.
 
 ```
-Internet → EC2 (t3.micro, public subnet, Docker) → apps/api container :3000
+Internet
+   │
+   ▼  :80
+┌──────────────────── EC2 t3.small (Amazon Linux 2023) ───────────────────┐
+│                                                                          │
+│   web  (nginx)  ──serves──►  built React SPA                             │
+│        └── /api/*  ──proxy──►  api :3000  ──►  postgres :5432            │
+│                                                    │                     │
+│                                             pgdata volume (EBS)          │
+└──────────────────────────────────────────────────────────────────────────┘
 ```
+
+Only port 80 is published. The API and Postgres are reachable **only** on the
+internal compose network — nginx is the single ingress. Port 22 is open to the
+operator's IP only; GitHub Actions opens its runner's IP for the duration of a
+deploy and revokes it in an `if: always()` step.
 
 | Resource | Choice | Why |
 |---|---|---|
-| Compute | 1x EC2 t3.micro, Amazon Linux 2023 | Free Tier eligible; `Dockerfile` + `infra/aws/ec2-user-data.sh` bring it up unattended |
-| Networking | Default VPC, security group open on 80/443 + 22 (your IP only) | No ALB needed for one instance |
-| Secrets | SSM Parameter Store, `/kairon/jwt-secret` (SecureString) | Free; script falls back to a dev secret if unset so the demo never blocks |
-| Database | **None** | In-memory repos are the actual Phase-"right now" persistence (`README.md`) |
-| Queue/Cache | **None** | `InMemoryEventPublisher` stands in for BullMQ/Redis |
-| Monitoring | EC2 default CloudWatch (free tier) | Sufficient for a 22-hour build |
+| Compute | 1× EC2 t3.small, AL2023 | 2 GB RAM; images are built in CI, so the instance only pulls and runs. 2 GB swap added for deploy overlap |
+| Ingress | Elastic IP + nginx :80 | Stable address across reboots; no ALB needed for one instance |
+| Database | `postgres:16-alpine`, named volume on EBS | Survives `compose down`, redeploys and reboots — which is what makes seeded data hold |
+| Registry | GHCR (`ghcr.io/<owner>/kairon-ifih-{api,web}`) | Free for private repos, and `GITHUB_TOKEN` already authenticates to it |
+| AWS auth from CI | GitHub OIDC → scoped IAM role | No long-lived AWS keys in GitHub secrets |
+| Secrets | Generated once by `provision`, written to `/opt/kairon/.env` (0600) | `JWT_SECRET` and the Postgres password never leave the instance or `.state.json` |
 
-Estimated cost: **$0–3 for the entire hackathon** (t3.micro Free Tier, or a few cents/hour if outside it). Data is lost on restart — acceptable for a demo, called out explicitly, not hidden.
+Cost: roughly **$17/month** (t3.small ~$15, 20 GB gp3 ~$1.60, Elastic IP free
+while attached) — about 16 months on a $300 credit.
 
-## 2. Production Deployment (post-hackathon)
+### Same-origin by design
 
-Matches `ARCHITECTURE.md` §10 exactly — this is the target once Phase 2 swaps
-the in-memory repos for the `PrismaX*` implementations that already sit next
-to them in every package's `infrastructure.ts`.
+`VITE_API_BASE_URL` is baked in at **build** time as the relative path
+`/api/v1`, and nginx proxies that to the api container. Consequences worth
+knowing: the browser never learns the instance IP, CORS never applies, and
+changing the instance address needs no frontend rebuild.
+
+### Commands
+
+```bash
+V=infra/aws/.venv/bin/python
+
+$V infra/aws/kairon.py provision      # create everything (idempotent)
+$V infra/aws/kairon.py github-oidc    # IAM role Actions can assume
+$V infra/aws/kairon.py secrets        # push deploy secrets to the repo
+$V infra/aws/kairon.py status         # what exists + health check
+$V infra/aws/kairon.py logs api       # tail one service
+$V infra/aws/kairon.py ssh            # shell on the instance
+$V infra/aws/kairon.py deploy         # manual deploy, bypassing CI
+$V infra/aws/kairon.py destroy        # remove everything, stop billing
+```
+
+### Migrations vs. seeding
+
+`prisma migrate deploy` runs automatically on every deploy — schema must lead
+the code that depends on it.
+
+**Seeding does not run automatically, by design.** `npm run seed` truncates
+every table before rebuilding, so wiring it into the push path would destroy
+real data on every commit. To reseed deliberately:
+
+- Actions → *Deploy to AWS* → **Run workflow** → tick `reseed`, or
+- `$V infra/aws/kairon.py seed` (prompts for confirmation)
+
+## 2. Production target (post-hackathon)
+
+Matches `ARCHITECTURE.md` §10 — the shape to grow into when one instance is no
+longer enough.
 
 ```
-Internet → ALB → ECS Fargate (apps/api, apps/worker) → RDS PostgreSQL (private subnet)
-                                                      → ElastiCache Redis (private subnet)
-                                        S3 (audit evidence) · SSM/Secrets Manager · CloudWatch
+Internet → ALB → ECS Fargate (api, worker) → RDS PostgreSQL (private subnet)
+                                            → ElastiCache Redis (private subnet)
+                              S3 (audit evidence) · Secrets Manager · CloudWatch
 ```
 
-| Resource | Choice | Trigger to build it |
-|---|---|---|
-| Compute | ECS Fargate, 2 services (api, worker) | Once `dist/` build pipeline replaces `tsx` (Phase 2 tooling) |
-| Database | RDS PostgreSQL, single-AZ → Multi-AZ | Once Prisma repos replace InMemory ones |
-| Cache/Queue | ElastiCache Redis | Once `apps/worker`'s BullMQ consumers are load-bearing (currently `InMemoryEventPublisher` does this job) |
-| Storage | S3 | Once `ExportAuditEvidenceUseCase` is implemented (currently `NotImplementedError`, Phase 6) |
-| Secrets | AWS Secrets Manager | Once automatic rotation is a real requirement |
-| Networking | VPC, private subnets for RDS/Redis, ALB for ingress | Once more than one EC2 instance needs to share a database |
-| IaC | Terraform | Once the manual `ec2-user-data.sh` step needs to be reproducible/team-shared |
+| Resource | Trigger to build it |
+|---|---|
+| ECS Fargate | Once one instance can't absorb the traffic, or zero-downtime deploys are required |
+| RDS PostgreSQL | Once losing the EBS volume becomes unacceptable — RDS gives automated backups and PITR |
+| ElastiCache Redis | Once `apps/worker`'s BullMQ consumers are load-bearing (today `InMemoryEventPublisher` does this job) |
+| S3 | Once `ExportAuditEvidenceUseCase` is implemented (currently `NotImplementedError`, Phase 6) |
+| ALB + ACM | Once HTTPS and a real domain are needed — the current stack is HTTP on an IP |
+| Terraform | Once `kairon.py` stops being enough to describe the infrastructure |
 
-Estimated cost: ~$45–60/month (detailed in `ARCHITECTURE.md` §10.1) — comfortably inside the $300 credit budget for months of iteration.
+Estimated cost: ~$45–60/month (detailed in `ARCHITECTURE.md` §10.1).
 
----
+### Known limitations of the current stack
 
-## Deploy This First
+Called out rather than hidden:
 
-1. Push this repo to GitHub (or update the URL in `infra/aws/ec2-user-data.sh`).
-2. Create an SSM SecureString parameter `/kairon/jwt-secret` with a real random value.
-3. Launch 1x EC2 t3.micro (Amazon Linux 2023, default VPC, security group: 80/443 open, 22 restricted to your IP), pasting `infra/aws/ec2-user-data.sh` into the instance's User Data field.
-4. Attach an IAM instance role with `ssm:GetParameter` on `/kairon/jwt-secret` (nothing else).
-5. Wait ~2 minutes for boot, then hit `http://<instance-public-ip>/api/v1/auth/login` with the seeded demo credentials printed in the container logs (`docker logs kairon-api`).
-
-That's it — no RDS, no ElastiCache, no ALB, no Terraform for day one.
+- **HTTP only.** No TLS — there's no domain yet. Credentials cross the network
+  in the clear. Fix by pointing a domain at the Elastic IP and terminating TLS
+  (ACM + ALB, or certbot in the nginx container).
+- **Single point of failure.** One instance, one AZ. An instance failure is an
+  outage; losing the EBS volume loses the data. No automated backups yet —
+  `docker compose exec postgres pg_dump` is the manual stopgap.
+- **`docs/CONVERSATION_TRANSCRIPT.md` and `docs/` generally are excluded from
+  the image** via `.dockerignore`; nothing in `docs/` is served.

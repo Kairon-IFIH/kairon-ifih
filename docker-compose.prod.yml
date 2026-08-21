@@ -1,0 +1,50 @@
+# Production stack for the single-EC2 deployment (infra/aws/kairon.py).
+#
+# Only the web container publishes a port. Postgres and the API are reachable
+# solely over the internal compose network, so neither the database nor the
+# unfronted API is exposed to the internet — nginx in the web container is the
+# single ingress and proxies /api/ through to the api service.
+#
+# Images are built and pushed by .github/workflows/deploy.yml; this file only
+# ever pulls them. Values come from the .env file the provision script writes
+# to /opt/kairon/.env on the instance.
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: kairon
+    volumes:
+      # Named volume on the instance's EBS disk. This is what makes seeded data
+      # survive `docker compose down`, a redeploy, and an instance reboot.
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d kairon"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    image: ${API_IMAGE:?API_IMAGE is required}
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/kairon
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      NODE_ENV: production
+      PORT: 3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    image: ${WEB_IMAGE:?WEB_IMAGE is required}
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:

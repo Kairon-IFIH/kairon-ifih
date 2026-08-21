@@ -3,6 +3,19 @@ node_modules
 **/dist
 .git
 *.log
+docs
+
+# Env files at ANY depth. A bare `.env` pattern only matches the context root,
+# which would still ship apps/web/.env into the web build — where vite would
+# read a localhost API URL out of it.
 .env
 .env.*
-docs
+**/.env
+**/.env.*
+!.env.example
+
+# Never let the EC2 private key or the generated JWT/postgres secrets
+# (infra/aws/.state.json) reach an image layer.
+infra/aws/.venv
+infra/aws/.secrets
+infra/aws/.state.json

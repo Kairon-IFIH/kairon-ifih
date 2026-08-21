@@ -1,0 +1,175 @@
+name: Deploy to AWS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      reseed:
+        description: "DESTRUCTIVE: wipe and rebuild demo data after deploying"
+        type: boolean
+        default: false
+
+# Two deploys racing each other onto one instance corrupts the compose state.
+# Queue them instead, and never cancel one mid-flight — it could leave the
+# security group open or the stack half-restarted.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build:
+    name: Build and push images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      api_image: ${{ steps.names.outputs.api }}
+      web_image: ${{ steps.names.outputs.web }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute image names
+        id: names
+        # GHCR rejects uppercase in image paths; the owner here is mixed-case.
+        run: |
+          SLUG=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          echo "api=${REGISTRY}/${SLUG}-api" >> "$GITHUB_OUTPUT"
+          echo "web=${REGISTRY}/${SLUG}-web" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push API
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ steps.names.outputs.api }}:latest
+            ${{ steps.names.outputs.api }}:${{ github.sha }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,scope=api,mode=max
+
+      - name: Build and push web
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./apps/web/Dockerfile
+          push: true
+          # Same-origin: nginx proxies /api/ to the api container, so the
+          # bundle never needs the instance's public IP baked in.
+          build-args: |
+            VITE_API_BASE_URL=/api/v1
+          tags: |
+            ${{ steps.names.outputs.web }}:latest
+            ${{ steps.names.outputs.web }}:${{ github.sha }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,scope=web,mode=max
+
+  deploy:
+    name: Deploy to EC2
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+      id-token: write # required to fetch the OIDC token for AWS
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC — no static keys)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Open SSH for this runner
+        id: sshopen
+        run: |
+          RUNNER_IP=$(curl -fsS https://checkip.amazonaws.com)
+          echo "cidr=${RUNNER_IP}/32" >> "$GITHUB_OUTPUT"
+          aws ec2 authorize-security-group-ingress \
+            --group-id "${{ secrets.AWS_SECURITY_GROUP_ID }}" \
+            --ip-permissions "IpProtocol=tcp,FromPort=22,ToPort=22,IpRanges=[{CidrIp=${RUNNER_IP}/32,Description='gha runner ${{ github.run_id }}'}]"
+
+      - name: Write SSH key
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s' "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/kairon.pem
+          chmod 600 ~/.ssh/kairon.pem
+          ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Deploy
+        env:
+          HOST: ${{ secrets.EC2_HOST }}
+          API_IMAGE: ${{ needs.build.outputs.api_image }}:${{ github.sha }}
+          WEB_IMAGE: ${{ needs.build.outputs.web_image }}:${{ github.sha }}
+          RESEED: ${{ github.event_name == 'workflow_dispatch' && inputs.reseed }}
+        run: |
+          set -euo pipefail
+
+          # Ship the current compose file so infra changes land with the code.
+          scp -i ~/.ssh/kairon.pem docker-compose.prod.yml \
+            "ec2-user@${HOST}:/opt/kairon/docker-compose.yml"
+
+          ssh -i ~/.ssh/kairon.pem "ec2-user@${HOST}" bash -euo pipefail <<REMOTE
+            cd /opt/kairon
+
+            echo "${{ secrets.GITHUB_TOKEN }}" \
+              | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
+
+            # Pin this release's exact digests, replacing the previous pins.
+            sed -i '/^API_IMAGE=/d;/^WEB_IMAGE=/d' .env
+            echo "API_IMAGE=${API_IMAGE}" >> .env
+            echo "WEB_IMAGE=${WEB_IMAGE}" >> .env
+
+            docker compose pull
+            docker compose up -d --remove-orphans
+
+            # Schema first — the new image may expect columns the old one lacks.
+            docker compose run --rm api npx prisma migrate deploy
+
+            if [ "${RESEED}" = "true" ]; then
+              echo "--- reseeding demo data (destructive, explicitly requested) ---"
+              docker compose run --rm api npm run seed
+            fi
+
+            docker image prune -f
+            docker logout ghcr.io
+          REMOTE
+
+      - name: Health check
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl -fsS "http://${{ secrets.EC2_HOST }}/healthz" >/dev/null; then
+              echo "web is up"
+              curl -fsS -o /dev/null -w 'api /auth/login -> %{http_code}\n' \
+                -X POST "http://${{ secrets.EC2_HOST }}/api/v1/auth/login" \
+                -H 'Content-Type: application/json' -d '{}' || true
+              exit 0
+            fi
+            echo "attempt ${attempt}: not ready yet"; sleep 5
+          done
+          echo "::error::service did not become healthy within 150s"
+          exit 1
+
+      - name: Close SSH
+        # Must run even if the deploy failed, or the runner's IP stays
+        # authorized on port 22 indefinitely.
+        if: always() && steps.sshopen.outputs.cidr != ''
+        run: |
+          aws ec2 revoke-security-group-ingress \
+            --group-id "${{ secrets.AWS_SECURITY_GROUP_ID }}" \
+            --ip-permissions "IpProtocol=tcp,FromPort=22,ToPort=22,IpRanges=[{CidrIp=${{ steps.sshopen.outputs.cidr }}}]" \
+            || echo "rule already removed"

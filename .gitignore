@@ -4,3 +4,10 @@ dist/
 .env
 .env.*
 !.env.example
+
+# AWS tooling (infra/aws/kairon.py)
+# .secrets holds the EC2 private key; .state.json holds the generated
+# JWT_SECRET and postgres password. Neither may ever be committed.
+infra/aws/.venv/
+infra/aws/.secrets/
+infra/aws/.state.json
