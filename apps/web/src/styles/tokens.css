@@ -1,0 +1,109 @@
+/**
+ * KAIRON design tokens — "Institutional Lattice" direction.
+ * Light mode: crisp, premium, banking-grade. The signature motif is the
+ * lattice/mesh — a direct visual reference to lattice-based post-quantum
+ * cryptography (Kyber/Dilithium), not decoration. Every color, type,
+ * spacing, and motion value used anywhere in the app is declared here once.
+ * Components reference tokens; they never hardcode a hex/oklch value.
+ */
+
+:root {
+  /* ---- surface ---- */
+  --surface-0: #f7f8fb; /* app / page background — cool off-white, not stark */
+  --surface-1: #ffffff; /* raised panel */
+  --surface-2: #ffffff; /* card */
+  --surface-3: #f1f3f9; /* hover/active surface */
+  --surface-inverse: #0b0f1a; /* dark sections on the landing page */
+  --surface-glass: oklch(1 0 0 / 0.72); /* frosted glass nav/sidebar */
+
+  /* ---- borders ---- */
+  --border-hairline: oklch(0.91 0.008 260);
+  --border-hairline-strong: oklch(0.82 0.015 260);
+  --border-glass: oklch(0.88 0.012 260);
+
+  /* ---- text ---- */
+  --text-primary: #0b0f1a;
+  --text-secondary: oklch(0.4 0.02 260);
+  --text-tertiary: oklch(0.56 0.02 260);
+  --text-on-accent: #ffffff;
+  --text-on-inverse: #f7f8fb;
+  --text-on-inverse-secondary: oklch(0.78 0.02 260);
+
+  /* ---- accents ---- */
+  --accent-risk: oklch(0.56 0.2 25); /* amber-red: alert / high risk */
+  --accent-risk-dim: oklch(0.56 0.2 25 / 0.1);
+  --accent-safe: oklch(0.52 0.13 160); /* teal-green: safe / positive */
+  --accent-safe-dim: oklch(0.52 0.13 160 / 0.1);
+  --accent-data: oklch(0.47 0.19 265); /* lattice indigo: brand, charts, gauges */
+  --accent-data-dim: oklch(0.47 0.19 265 / 0.1);
+  --accent-data-2: oklch(0.64 0.16 235); /* secondary lattice blue — gradients only */
+  --accent-warn: oklch(0.64 0.15 78); /* amber: medium severity */
+  --accent-warn-dim: oklch(0.64 0.15 78 / 0.1);
+
+  /* ---- severity scale (risk levels) ---- */
+  --severity-critical: var(--accent-risk);
+  --severity-high: oklch(0.58 0.19 40);
+  --severity-medium: var(--accent-warn);
+  --severity-low: var(--accent-safe);
+
+  /* ---- type families ---- */
+  --font-mono: "DM Mono", "SF Mono", ui-monospace, monospace;
+  --font-ui: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  /* ---- type scale ---- */
+  --text-xs: 0.6875rem; /* 11px — labels, eyebrows */
+  --text-sm: 0.8125rem; /* 13px — secondary UI */
+  --text-base: 0.9375rem; /* 15px — body */
+  --text-lg: 1.125rem; /* 18px — section headers */
+  --text-xl: 1.5rem; /* 24px — page titles */
+  --text-kpi: 2.5rem; /* 40px — KPI numbers */
+  --text-gauge: 3.5rem; /* 56px — Q-Risk score */
+  --text-display: clamp(2.75rem, 5vw, 4.75rem); /* landing hero headline */
+
+  /* ---- tracking ---- */
+  --tracking-label: 0.08em;
+
+  /* ---- spacing (4px base) ---- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-24: 6rem;
+  --space-32: 8rem;
+
+  /* ---- radius: sharp for the product instrument, generous for the landing page ---- */
+  --radius-sharp: 2px;
+  --radius-glass: 8px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+  --radius-pill: 999px;
+
+  /* ---- motion ---- */
+  --ease-precision: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast: 120ms;
+  --duration-base: 240ms;
+  --duration-slow: 560ms;
+
+  /* ---- elevation ---- */
+  --shadow-glass: 0 20px 60px -20px oklch(0.5 0.05 260 / 0.25);
+  --shadow-sm: 0 1px 2px oklch(0.2 0.02 260 / 0.06), 0 1px 1px oklch(0.2 0.02 260 / 0.04);
+  --shadow-md: 0 8px 24px -8px oklch(0.2 0.02 260 / 0.14), 0 2px 8px -2px oklch(0.2 0.02 260 / 0.08);
+  --shadow-lg: 0 24px 64px -16px oklch(0.2 0.02 260 / 0.22), 0 8px 24px -8px oklch(0.2 0.02 260 / 0.1);
+
+  color-scheme: light;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+    --duration-base: 0ms;
+    --duration-slow: 0ms;
+  }
+}

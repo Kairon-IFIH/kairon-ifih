@@ -1,0 +1,71 @@
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.form-input,
+.form-select,
+.form-textarea {
+  background: var(--surface-2);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sharp);
+  padding: var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  transition: border-color var(--duration-fast) var(--ease-precision);
+}
+
+.form-input.num,
+.form-select.num {
+  font-family: var(--font-mono);
+}
+
+.form-input:focus-visible,
+.form-select:focus-visible,
+.form-textarea:focus-visible {
+  border-color: var(--accent-data);
+}
+
+.form-button {
+  background: var(--accent-data);
+  color: var(--text-on-accent);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-sharp);
+  transition: opacity var(--duration-fast) var(--ease-precision);
+}
+
+.form-button:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.form-button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.form-button--ghost {
+  background: transparent;
+  border: 1px solid var(--border-hairline-strong);
+  color: var(--text-primary);
+}
+
+.form-button--ghost:hover:not(:disabled) {
+  background: var(--surface-3);
+}
+
+.form-error {
+  color: var(--accent-risk);
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-4);
+}
+
+.form-success {
+  color: var(--accent-safe);
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-4);
+}

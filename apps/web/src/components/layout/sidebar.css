@@ -1,0 +1,79 @@
+/* The sidebar is the app's one deliberate glassmorphism surface. */
+.sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  background: var(--surface-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-right: 1px solid var(--border-glass);
+  box-shadow: var(--shadow-glass);
+  padding: var(--space-6) var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.sidebar__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-3);
+}
+
+.sidebar__mark {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  background: var(--accent-data-dim);
+  color: var(--accent-data);
+  border: 1px solid var(--border-hairline-strong);
+  border-radius: var(--radius-sharp);
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: var(--text-sm);
+}
+
+.sidebar__wordmark {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-label);
+  color: var(--text-primary);
+}
+
+.sidebar__list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.sidebar__link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-glass);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  transition: background var(--duration-fast) var(--ease-precision), color var(--duration-fast) var(--ease-precision);
+}
+
+.sidebar__link:hover {
+  background: var(--surface-3);
+  color: var(--text-primary);
+}
+
+.sidebar__link--active {
+  background: var(--accent-data-dim);
+  color: var(--text-primary);
+}
+
+.sidebar__link--active svg {
+  color: var(--accent-data);
+}

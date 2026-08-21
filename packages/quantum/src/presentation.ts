@@ -2,9 +2,37 @@ import { Router, type Request, type Response, type NextFunction } from "express"
 import type { OptimizationJobId, TenantContext } from "@kairon/shared-kernel";
 import { createOptimizationJobSchema, apiSuccess } from "@kairon/api-contracts";
 import type { QuantumModule } from "./application";
+import type { OptimizationJob } from "./domain";
 
 function tenantContextOf(req: Request): TenantContext {
   return (req as Request & { tenantContext: TenantContext }).tenantContext;
+}
+
+/** Flattens OptimizationJob — see asset/src/presentation.ts's toAssetDTO for why this exists. */
+function toOptimizationJobDTO(job: OptimizationJob) {
+  return {
+    id: job.id,
+    status: job.status,
+    candidateActions: job.candidateActions.map((a) => ({
+      actionId: a.actionId,
+      costAmount: a.cost.amount,
+      costCurrency: a.cost.currency,
+      riskReduction: a.riskReduction,
+    })),
+    mandatoryActionIds: job.mandatoryActionIds,
+    budget: { amount: job.budgetConstraint.maxSpend.amount, currency: job.budgetConstraint.maxSpend.currency },
+    result: job.result
+      ? {
+          selectedActionIds: job.result.selectedActionIds,
+          totalCostAmount: job.result.totalCost.amount,
+          totalCostCurrency: job.result.totalCost.currency,
+          riskReductionPercent: job.result.riskReductionPercent,
+          residualRiskAmount: job.result.residualRisk.amount,
+          residualRiskCurrency: job.result.residualRisk.currency,
+          classicalBaselineComparison: job.result.classicalBaselineComparison,
+        }
+      : null,
+  };
 }
 
 /**
@@ -32,7 +60,7 @@ export function createQuantumRouter(module: QuantumModule): Router {
         req.params.jobId as OptimizationJobId
       );
       if (!result.isSuccess) return next(result.error);
-      res.status(200).json(apiSuccess(result.value, "OK"));
+      res.status(200).json(apiSuccess(toOptimizationJobDTO(result.value), "OK"));
     } catch (err) {
       next(err);
     }

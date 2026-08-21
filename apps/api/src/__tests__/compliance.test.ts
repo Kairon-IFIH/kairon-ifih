@@ -28,7 +28,7 @@ describe("KAIRON API — compliance mapping and traceability", () => {
       .send({ assetId, controlId: "dpdp-control-encryption" });
 
     expect(res.status).toBe(201);
-    expect(res.body.data.props.gapStatus.props.value).toBe("PARTIAL");
+    expect(res.body.data.gapStatus).toBe("PARTIAL");
   });
 
   it("surfaces the mapping in gap analysis", async () => {
@@ -41,8 +41,8 @@ describe("KAIRON API — compliance mapping and traceability", () => {
     const res = await request(app).get(`/api/v1/compliance/assets/${assetId}/traceability`).set(auth);
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
-    expect(res.body.data[0].regulation.props.clauseReference).toBe("DPDP Act 2023, Section 8(5)");
-    expect(res.body.data[0].framework.props.code).toBe("DPDP");
+    expect(res.body.data[0].regulation.clauseReference).toBe("DPDP Act 2023, Section 8(5)");
+    expect(res.body.data[0].framework.code).toBe("DPDP");
   });
 
   it("rejects mapping to an unknown control", async () => {

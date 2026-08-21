@@ -1,0 +1,19 @@
+.lattice-hero {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.lattice-hero__node {
+  opacity: 0;
+  transform-origin: center;
+  transform-box: fill-box;
+  transform: scale(0.3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lattice-hero__node {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

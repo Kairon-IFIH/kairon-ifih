@@ -50,12 +50,12 @@ describe("KAIRON API — end-to-end MVP workflow", () => {
 
     const riskRes = await request(app).post("/api/v1/risks/calculate").set(auth).send({ assetId });
     expect(riskRes.status).toBe(201);
-    expect(riskRes.body.data.props.score.props.level).toBe("HIGH");
+    expect(riskRes.body.data.level).toBe("HIGH");
     const riskId = riskRes.body.data.id;
 
     const exposureRes = await request(app).post("/api/v1/financial/exposures").set(auth).send({ riskId });
     expect(exposureRes.status).toBe(201);
-    expect(exposureRes.body.data.props.financialExposure.props.amount).toBeGreaterThan(0);
+    expect(exposureRes.body.data.financialExposureAmount).toBeGreaterThan(0);
 
     const qRiskRes = await request(app).get("/api/v1/financial/q-risk").set(auth);
     expect(qRiskRes.status).toBe(200);
@@ -78,11 +78,11 @@ describe("KAIRON API — end-to-end MVP workflow", () => {
 
     const jobResultRes = await request(app).get(`/api/v1/optimization-jobs/${jobId}`).set(auth);
     expect(jobResultRes.status).toBe(200);
-    expect(jobResultRes.body.data.props.status).toBe("COMPLETED");
+    expect(jobResultRes.body.data.status).toBe("COMPLETED");
 
     const auditRes = await request(app).get("/api/v1/audit?page=1&pageSize=50").set(auth);
     expect(auditRes.status).toBe(200);
-    const actions = auditRes.body.data.items.map((e: { props: { action: string } }) => e.props.action);
+    const actions = auditRes.body.data.items.map((e: { action: string }) => e.action);
     expect(actions).toEqual(
       expect.arrayContaining(["AssetDiscovered", "RiskCalculated", "FinancialExposureQuantified", "OptimizationExecuted"])
     );

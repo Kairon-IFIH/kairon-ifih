@@ -1,7 +1,8 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import type { AssetId, TenantContext } from "@kairon/shared-kernel";
-import { createAssetSchema, listAssetsQuerySchema, apiSuccess } from "@kairon/api-contracts";
+import { createAssetSchema, listAssetsQuerySchema, apiSuccess, type PaginatedResult } from "@kairon/api-contracts";
 import type { AssetModule } from "./application";
+import type { Asset } from "./domain";
 
 /**
  * `req.tenantContext` is populated by the tenant-context middleware in apps/api
@@ -9,6 +10,28 @@ import type { AssetModule } from "./application";
  */
 function tenantContextOf(req: Request): TenantContext {
   return (req as Request & { tenantContext: TenantContext }).tenantContext;
+}
+
+/**
+ * Flattens the Asset aggregate into wire-safe JSON. Without this, res.json()
+ * on the raw entity serializes its private fields as-is (id, tenantId, props,
+ * domainEvents, nested value-object .props) — an accident of how JS class
+ * instances stringify, not a contract. Every route below returns this shape.
+ */
+function toAssetDTO(asset: Asset) {
+  return {
+    id: asset.id,
+    name: asset.name,
+    assetType: asset.assetType,
+    criticality: asset.criticality.level,
+    criticalityWeight: asset.criticality.weight,
+    dataClassification: asset.dataClassification.level,
+    regulatoryScope: asset.regulatoryScope.frameworkCodes,
+  };
+}
+
+function toAssetListDTO(page: PaginatedResult<Asset>) {
+  return { ...page, items: page.items.map(toAssetDTO) };
 }
 
 export function createAssetRouter(module: AssetModule): Router {
@@ -19,7 +42,7 @@ export function createAssetRouter(module: AssetModule): Router {
       const body = createAssetSchema.parse(req.body);
       const result = await module.createAsset.execute(tenantContextOf(req), body);
       if (!result.isSuccess) return next(result.error);
-      res.status(201).json(apiSuccess(result.value, "Asset created"));
+      res.status(201).json(apiSuccess(toAssetDTO(result.value), "Asset created"));
     } catch (err) {
       next(err);
     }
@@ -30,7 +53,7 @@ export function createAssetRouter(module: AssetModule): Router {
       const query = listAssetsQuerySchema.parse(req.query);
       const result = await module.listAssets.execute(tenantContextOf(req), query);
       if (!result.isSuccess) return next(result.error);
-      res.status(200).json(apiSuccess(result.value, "OK"));
+      res.status(200).json(apiSuccess(toAssetListDTO(result.value), "OK"));
     } catch (err) {
       next(err);
     }
@@ -40,7 +63,7 @@ export function createAssetRouter(module: AssetModule): Router {
     try {
       const result = await module.getAssetById.execute(tenantContextOf(req), req.params.id as AssetId);
       if (!result.isSuccess) return next(result.error);
-      res.status(200).json(apiSuccess(result.value, "OK"));
+      res.status(200).json(apiSuccess(toAssetDTO(result.value), "OK"));
     } catch (err) {
       next(err);
     }

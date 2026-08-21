@@ -1,0 +1,52 @@
+.assets-page__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+  flex-wrap: wrap;
+}
+
+.assets-page__filters,
+.assets-page__actions {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.assets-page__actions .form-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.csv-drop {
+  border: 1px dashed var(--border-hairline-strong);
+  border-radius: var(--radius-sharp);
+  padding: var(--space-10) var(--space-6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  text-align: center;
+  color: var(--text-secondary);
+  transition: border-color var(--duration-fast) var(--ease-precision), background var(--duration-fast) var(--ease-precision);
+}
+
+.csv-drop--active {
+  border-color: var(--accent-data);
+  background: var(--accent-data-dim);
+}
+
+.csv-drop__browse {
+  color: var(--accent-data);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  font-size: var(--text-sm);
+}
+
+.csv-drop__hint {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  margin-top: var(--space-2);
+}

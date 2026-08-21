@@ -150,6 +150,9 @@ async function createApp() {
   const app = express();
   app.use(helmet());
   app.use(cors());
+  // CSV import reads req.body as raw text (asset/src/presentation.ts) — must be
+  // parsed as text, not JSON, and must run before the global json() parser below.
+  app.use("/api/v1/assets/import", express.text({ type: () => true }));
   app.use(express.json());
   app.use(requestLoggerMiddleware());
 

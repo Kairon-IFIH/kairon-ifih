@@ -1,0 +1,36 @@
+.q-gauge {
+  position: relative;
+  width: 220px;
+  height: 220px;
+  display: grid;
+  place-items: center;
+}
+
+.q-gauge__svg circle {
+  transition: stroke var(--duration-base) var(--ease-precision);
+}
+
+.q-gauge__readout {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  text-align: center;
+}
+
+.q-gauge__number {
+  font-size: var(--text-gauge);
+  font-weight: 500;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.q-gauge__level {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+}

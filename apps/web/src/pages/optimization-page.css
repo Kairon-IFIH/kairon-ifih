@@ -1,0 +1,109 @@
+.optimization-page {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: var(--space-6);
+  align-items: start;
+}
+
+.optimization-page__builder,
+.optimization-page__result {
+  background: var(--surface-2);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sharp);
+  padding: var(--space-5);
+}
+
+.optimization-page__result {
+  position: sticky;
+  top: var(--space-8);
+}
+
+.optimization-page__add-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+  padding-bottom: var(--space-5);
+  border-bottom: 1px solid var(--border-hairline);
+}
+
+.optimization-page__add-form-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: var(--space-4);
+}
+
+.optimization-page__add-form .form-field {
+  margin-bottom: 0;
+  min-width: 0;
+}
+
+.optimization-page__add-form input[type="range"] {
+  width: 100%;
+}
+
+.optimization-page__add-form > .form-button {
+  align-self: flex-start;
+}
+
+.optimization-page__row--selected {
+  background: var(--accent-safe-dim);
+}
+
+.optimization-page__remove {
+  color: var(--text-tertiary);
+  padding: var(--space-1);
+}
+
+.optimization-page__remove:hover {
+  color: var(--accent-risk);
+}
+
+.optimization-page__budget {
+  margin-top: var(--space-5);
+}
+
+.optimization-page__budget input[type="range"] {
+  width: 100%;
+}
+
+.optimization-page__stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+
+.optimization-page__stat-value {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-top: var(--space-1);
+}
+
+.optimization-page__hint {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  margin-top: var(--space-2);
+}
+
+.optimization-page__disclosure {
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-hairline);
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
+@media (max-width: 1024px) {
+  .optimization-page {
+    grid-template-columns: 1fr;
+  }
+  .optimization-page__result {
+    position: static;
+  }
+  .optimization-page__add-form {
+    grid-template-columns: 1fr;
+  }
+}
