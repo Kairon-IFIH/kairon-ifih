@@ -12,6 +12,8 @@
     "@kairon/shared-kernel": "*",
     "@kairon/event-contracts": "*",
     "@kairon/api-contracts": "*",
+    "@kairon/risk": "*",
+    "@kairon/asset": "*",
     "express": "^4.19.2"
   }
 }
