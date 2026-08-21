@@ -2,23 +2,36 @@ import express from "express";
 import helmet from "helmet";
 import cors from "cors";
 
-import { createIdentityModule, createIdentityRouter, PrismaTenantRepository, PrismaUserRepository, PrismaRoleRepository } from "@kairon/identity";
-import { createAssetModule, createAssetRouter, PrismaAssetRepository } from "@kairon/asset";
+import { InMemoryEventPublisher } from "@kairon/event-contracts";
+import {
+  createIdentityModule,
+  createIdentityRouter,
+  InMemoryTenantRepository,
+  InMemoryUserRepository,
+  InMemoryRoleRepository,
+  seedDemoTenant,
+} from "@kairon/identity";
+import { createAssetModule, createAssetRouter, InMemoryAssetRepository } from "@kairon/asset";
 import {
   createComplianceModule,
   createComplianceRouter,
   PrismaFrameworkRepository,
   PrismaComplianceMappingRepository,
 } from "@kairon/compliance";
-import { createRiskModule, createRiskRouter, PrismaRiskRepository } from "@kairon/risk";
-import { createFinancialModule, createFinancialRouter, PrismaFinancialExposureRepository } from "@kairon/financial";
+import { createRiskModule, createRiskRouter, InMemoryRiskRepository, RiskScoringServiceImpl } from "@kairon/risk";
+import {
+  createFinancialModule,
+  createFinancialRouter,
+  InMemoryFinancialExposureRepository,
+  QRiskAggregationServiceImpl,
+} from "@kairon/financial";
 import {
   createQuantumModule,
   createQuantumRouter,
-  PrismaOptimizationJobRepository,
-  HttpQuantumSolverGateway,
+  InMemoryOptimizationJobRepository,
+  GreedyClassicalSolverGateway,
 } from "@kairon/quantum";
-import { createAuditModule, createAuditRouter, PrismaAuditEventRepository } from "@kairon/audit";
+import { createAuditModule, createAuditRouter, InMemoryAuditEventRepository } from "@kairon/audit";
 import { createNotificationModule, createNotificationRouter, PrismaNotificationRepository } from "@kairon/notification";
 
 import { requireAuth } from "./middleware/auth.middleware";
@@ -30,22 +43,23 @@ import { errorHandlerMiddleware } from "./middleware/error-handler.middleware";
  * about every bounded context at once. Everything above (domain/application
  * layers) stays ignorant of Express, Prisma, and each other.
  *
- * `prismaClient` is `undefined` until Phase 2 wires an actual PrismaClient —
- * every repository constructor currently accepts `unknown` for exactly this reason.
+ * Persistence is in-memory for the 6 MVP-critical contexts (identity, asset,
+ * risk, financial, quantum, audit) — the real Phase-2 swap is dropping in the
+ * PrismaX* classes that already sit next to each InMemoryX* class; nothing
+ * above this file changes when that happens. Compliance/Notification stay on
+ * their Prisma stubs since they're explicitly Phase 2/optional-for-MVP scope.
  */
-function createApp() {
+async function createApp() {
   const prismaClient: unknown = undefined;
-  const quantumRunnerBaseUrl = process.env.QUANTUM_RUNNER_URL ?? "http://localhost:8001";
+  const eventPublisher = new InMemoryEventPublisher();
 
-  const identity = createIdentityModule({
-    tenantRepository: new PrismaTenantRepository(prismaClient),
-    userRepository: new PrismaUserRepository(prismaClient),
-    roleRepository: new PrismaRoleRepository(prismaClient),
-  });
+  const tenantRepository = new InMemoryTenantRepository();
+  const userRepository = new InMemoryUserRepository();
+  const roleRepository = new InMemoryRoleRepository();
+  const identity = createIdentityModule({ tenantRepository, userRepository, roleRepository });
 
-  const asset = createAssetModule({
-    assetRepository: new PrismaAssetRepository(prismaClient),
-  });
+  const assetRepository = new InMemoryAssetRepository();
+  const asset = createAssetModule({ assetRepository, eventPublisher });
 
   const complianceMappingRepository = new PrismaComplianceMappingRepository(prismaClient);
   const compliance = createComplianceModule({
@@ -55,30 +69,43 @@ function createApp() {
     traceabilityService: { traceAssetToRegulation: async () => [] },
   });
 
+  const riskRepository = new InMemoryRiskRepository();
   const risk = createRiskModule({
-    riskRepository: new PrismaRiskRepository(prismaClient),
-    // Phase 3: swap for the real RiskScoringService implementation.
-    riskScoringService: { scoreAsset: async () => { throw new Error("not implemented"); } },
+    riskRepository,
+    riskScoringService: new RiskScoringServiceImpl({ assetRepository }),
+    eventPublisher,
   });
 
+  const financialExposureRepository = new InMemoryFinancialExposureRepository();
   const financial = createFinancialModule({
-    financialExposureRepository: new PrismaFinancialExposureRepository(prismaClient),
-    // Phase 3/6: swap for the real QRiskAggregationService implementation.
-    qRiskAggregationService: { calculateQRisk: async () => 0 },
+    financialExposureRepository,
+    riskRepository,
+    qRiskAggregationService: new QRiskAggregationServiceImpl({ assetRepository, riskRepository }),
+    eventPublisher,
   });
 
   const quantum = createQuantumModule({
-    optimizationJobRepository: new PrismaOptimizationJobRepository(prismaClient),
-    quantumSolverGateway: new HttpQuantumSolverGateway(quantumRunnerBaseUrl),
+    optimizationJobRepository: new InMemoryOptimizationJobRepository(),
+    // MVP: classical-only greedy solver. HttpQuantumSolverGateway(quantumRunnerBaseUrl)
+    // is the real Phase 5 swap once apps/quantum-runner's Qiskit/PennyLane
+    // service exists — same interface, no caller changes.
+    quantumSolverGateway: new GreedyClassicalSolverGateway(),
+    eventPublisher,
   });
 
-  const audit = createAuditModule({
-    auditEventRepository: new PrismaAuditEventRepository(prismaClient),
-  });
+  const auditEventRepository = new InMemoryAuditEventRepository();
+  const audit = createAuditModule({ auditEventRepository });
+
+  // Cross-cutting: every domain event, from every context, reaches Audit (ARCHITECTURE.md §8).
+  eventPublisher.subscribe("*", (envelope) => audit.recordAuditEvent.execute(envelope).then(() => undefined));
 
   const notification = createNotificationModule({
     notificationRepository: new PrismaNotificationRepository(prismaClient),
   });
+
+  const seed = await seedDemoTenant({ tenantRepository, userRepository, roleRepository });
+  // eslint-disable-next-line no-console
+  console.log(`Demo login ready: ${seed.adminEmail} / ${seed.adminPassword} (tenant: ${seed.tenantId})`);
 
   const app = express();
   app.use(helmet());
@@ -106,9 +133,11 @@ function createApp() {
 
 if (require.main === module) {
   const port = Number(process.env.PORT ?? 3000);
-  createApp().listen(port, () => {
-    // eslint-disable-next-line no-console
-    console.log(`KAIRON API listening on :${port}`);
+  createApp().then((app) => {
+    app.listen(port, () => {
+      // eslint-disable-next-line no-console
+      console.log(`KAIRON API listening on :${port}`);
+    });
   });
 }
 
