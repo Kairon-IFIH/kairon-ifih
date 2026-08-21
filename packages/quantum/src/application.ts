@@ -1,6 +1,15 @@
-import { NotImplementedError, OptimizationJobId, Result, TenantContext } from "@kairon/shared-kernel";
+import { randomUUID } from "node:crypto";
+import { asOptimizationJobId, fail, Money, NotFoundError, ok, OptimizationJobId, Result, TenantContext } from "@kairon/shared-kernel";
 import type { CreateOptimizationJobRequest } from "@kairon/api-contracts";
-import type { OptimizationJob, OptimizationJobRepository, OptimizationResult, QuantumSolverGateway } from "./domain";
+import type { EventPublisher } from "@kairon/event-contracts";
+import {
+  BudgetConstraint,
+  ObjectiveFunction,
+  OptimizationExecutedEvent,
+  OptimizationJob,
+  OptimizationJobRepository,
+  QuantumSolverGateway,
+} from "./domain";
 
 export interface CreateOptimizationJobUseCase {
   execute(ctx: TenantContext, request: CreateOptimizationJobRequest): Promise<Result<{ jobId: string }>>;
@@ -13,26 +22,73 @@ export interface GetOptimizationResultUseCase {
 export interface Dependencies {
   optimizationJobRepository: OptimizationJobRepository;
   quantumSolverGateway: QuantumSolverGateway;
+  eventPublisher: EventPublisher;
 }
 
 export class CreateOptimizationJobUseCaseImpl implements CreateOptimizationJobUseCase {
   constructor(private readonly deps: Dependencies) {}
 
-  async execute(
-    _ctx: TenantContext,
-    _request: CreateOptimizationJobRequest
-  ): Promise<Result<{ jobId: string }>> {
-    throw new NotImplementedError(
-      "CreateOptimizationJobUseCase.execute — Phase 5, returns 202 Accepted per ARCHITECTURE.md §7 async job pattern"
-    );
+  /** Returns 202-Accepted-shaped output per ARCHITECTURE.md §7 async job pattern. */
+  async execute(ctx: TenantContext, request: CreateOptimizationJobRequest): Promise<Result<{ jobId: string }>> {
+    const job = OptimizationJob.create(asOptimizationJobId(randomUUID()), ctx.tenantId, {
+      objective: ObjectiveFunction.default(),
+      constraints: [],
+      candidateActions: request.candidateActions.map((a) => ({
+        actionId: a.actionId,
+        cost: Money.create(a.cost, request.currency),
+        riskReduction: a.riskReduction,
+      })),
+      mandatoryActionIds: request.mandatoryActionIds,
+      budgetConstraint: BudgetConstraint.create(Money.create(request.budget, request.currency)),
+    });
+
+    await this.deps.optimizationJobRepository.save(ctx, job);
+
+    job.markRunning();
+    await this.deps.optimizationJobRepository.save(ctx, job);
+
+    // Synchronous for the MVP greedy gateway (near-instant on small N); the
+    // real Qiskit sidecar (Phase 5) will make this genuinely async and the
+    // job will sit in RUNNING until a worker polls getResult().
+    await this.deps.quantumSolverGateway.submitJob(job);
+    const result = await this.deps.quantumSolverGateway.getResult(job.id);
+    if (result) {
+      job.complete(result);
+      await this.deps.optimizationJobRepository.save(ctx, job);
+
+      for (const event of job.pullDomainEvents()) {
+        if (event instanceof OptimizationExecutedEvent) {
+          await this.deps.eventPublisher.publish({
+            eventId: randomUUID(),
+            eventName: "OptimizationExecuted",
+            occurredAt: event.occurredAt.toISOString(),
+            payload: {
+              tenantId: event.tenantId,
+              jobId: event.jobId,
+              selectedActions: event.selectedActions,
+              totalCost: event.totalCost,
+              riskReduction: event.riskReduction,
+              residualRisk: event.residualRisk,
+              timestamp: event.occurredAt.toISOString(),
+            },
+          });
+        }
+      }
+    }
+
+    return ok({ jobId: job.id });
   }
 }
 
 export class GetOptimizationResultUseCaseImpl implements GetOptimizationResultUseCase {
   constructor(private readonly deps: Dependencies) {}
 
-  async execute(_ctx: TenantContext, _jobId: OptimizationJobId): Promise<Result<OptimizationJob>> {
-    throw new NotImplementedError("GetOptimizationResultUseCase.execute — Phase 5");
+  async execute(ctx: TenantContext, jobId: OptimizationJobId): Promise<Result<OptimizationJob>> {
+    const job = await this.deps.optimizationJobRepository.findById(ctx, jobId);
+    if (!job) {
+      return fail(new NotFoundError("OptimizationJob", jobId));
+    }
+    return ok(job);
   }
 }
 

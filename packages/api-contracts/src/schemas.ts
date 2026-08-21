@@ -70,8 +70,18 @@ export const quantifyExposureSchema = z.object({
 export type QuantifyExposureRequest = z.infer<typeof quantifyExposureSchema>;
 
 // ---- quantum ----
+// Shape matches apps/quantum-runner's documented contract (README.md) so the
+// TS-side greedy fallback and the future Qiskit/PennyLane solver consume
+// identical input — no adapter needed when the real sidecar comes online.
+export const candidateActionSchema = z.object({
+  actionId: z.string().uuid(),
+  cost: z.number().positive(),
+  riskReduction: z.number().min(0).max(1),
+});
+export type CandidateActionInput = z.infer<typeof candidateActionSchema>;
+
 export const createOptimizationJobSchema = z.object({
-  candidateActionIds: z.array(z.string().uuid()).min(1),
+  candidateActions: z.array(candidateActionSchema).min(1),
   budget: z.number().positive(),
   currency: z.enum(["INR", "USD"]),
   mandatoryActionIds: z.array(z.string().uuid()).default([]),
