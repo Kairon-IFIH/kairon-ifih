@@ -1,11 +1,15 @@
 import {
   AggregateRoot,
   AssetId,
+  DomainEvent,
   Entity,
+  Money,
   NotImplementedError,
   RiskFactorId,
   RiskId,
   TenantContext,
+  TenantId,
+  ValidationError,
   ValueObject,
 } from "@kairon/shared-kernel";
 
@@ -22,8 +26,11 @@ export class Likelihood extends ValueObject<LikelihoodProps> {
     super(props);
   }
 
-  static create(_value: number): Likelihood {
-    throw new NotImplementedError("Likelihood.create — Phase 3, must reject value outside [0,1]");
+  static create(value: number): Likelihood {
+    if (!Number.isFinite(value) || value < 0 || value > 1) {
+      throw new ValidationError([`Likelihood must be between 0 and 1, got ${value}`]);
+    }
+    return new Likelihood({ value });
   }
 
   get value(): number {
@@ -32,8 +39,7 @@ export class Likelihood extends ValueObject<LikelihoodProps> {
 }
 
 export interface ImpactProps {
-  readonly amount: number;
-  readonly currency: "INR" | "USD";
+  readonly money: Money;
 }
 
 export class Impact extends ValueObject<ImpactProps> {
@@ -41,15 +47,36 @@ export class Impact extends ValueObject<ImpactProps> {
     super(props);
   }
 
-  static create(_amount: number, _currency: "INR" | "USD"): Impact {
-    throw new NotImplementedError("Impact.create — Phase 3");
+  static create(amount: number, currency: "INR" | "USD"): Impact {
+    return new Impact({ money: Money.create(amount, currency) });
+  }
+
+  get money(): Money {
+    return this.props.money;
   }
 }
+
+export type RiskLevel = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 
 export interface RiskScoreProps {
   readonly inherentScore: number; // 0..100
   readonly residualScore: number; // 0..100
-  readonly level: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+  readonly level: RiskLevel;
+}
+
+/**
+ * Reference impact that maps to 100% severity on the 0-100 scale. This is an
+ * explicit, disclosed MVP placeholder (ARCHITECTURE.md §12 Decision 6 requires
+ * loss-model assumptions to be disclosed, not left implicit) — swap for a real
+ * methodology (e.g. FAIR) once one is chosen.
+ */
+const MAX_REFERENCE_IMPACT_INR = 100_00_000; // ₹1 Crore
+
+function levelFor(residualScore: number): RiskLevel {
+  if (residualScore < 25) return "LOW";
+  if (residualScore < 50) return "MEDIUM";
+  if (residualScore < 75) return "HIGH";
+  return "CRITICAL";
 }
 
 /** Immutable once calculated (ARCHITECTURE.md §3.2) — never mutated after construction. */
@@ -58,10 +85,14 @@ export class RiskScore extends ValueObject<RiskScoreProps> {
     super(props);
   }
 
-  static calculate(_likelihood: Likelihood, _impact: Impact, _controlEffectiveness: number): RiskScore {
-    throw new NotImplementedError(
-      "RiskScore.calculate — Phase 3, ARCHITECTURE.md §1.5 Risk = Likelihood x Impact"
-    );
+  static calculate(likelihood: Likelihood, impact: Impact, controlEffectiveness: number): RiskScore {
+    if (!Number.isFinite(controlEffectiveness) || controlEffectiveness < 0 || controlEffectiveness > 1) {
+      throw new ValidationError([`controlEffectiveness must be between 0 and 1, got ${controlEffectiveness}`]);
+    }
+    const normalizedImpact = Math.min(impact.money.amount / MAX_REFERENCE_IMPACT_INR, 1) * 100;
+    const inherentScore = Math.round(likelihood.value * normalizedImpact);
+    const residualScore = Math.round(inherentScore * (1 - controlEffectiveness));
+    return new RiskScore({ inherentScore, residualScore, level: levelFor(residualScore) });
   }
 
   get inherentScore(): number {
@@ -70,6 +101,10 @@ export class RiskScore extends ValueObject<RiskScoreProps> {
 
   get residualScore(): number {
     return this.props.residualScore;
+  }
+
+  get level(): RiskLevel {
+    return this.props.level;
   }
 }
 
@@ -86,7 +121,26 @@ export class RiskFactor extends Entity<RiskFactorId> {
   }
 
   static create(_id: RiskFactorId, _props: RiskFactorProps): RiskFactor {
-    throw new NotImplementedError("RiskFactor.create — Phase 3");
+    throw new NotImplementedError(
+      "RiskFactor.create — Phase 2 Entity per ARCHITECTURE.md domain-model classification, not required for one composite RiskScore"
+    );
+  }
+}
+
+// ---- Domain Event ----
+
+export class RiskCalculatedEvent extends DomainEvent {
+  readonly eventName = "RiskCalculated" as const;
+  constructor(
+    tenantId: TenantId,
+    readonly riskId: RiskId,
+    readonly assetId: AssetId,
+    readonly likelihood: number,
+    readonly impact: number,
+    readonly riskScore: number,
+    readonly residualRisk: number
+  ) {
+    super(tenantId);
   }
 }
 
@@ -95,23 +149,54 @@ export class RiskFactor extends Entity<RiskFactorId> {
 export interface RiskProps {
   readonly assetId: AssetId;
   readonly factors: RiskFactor[];
+  readonly likelihood: Likelihood;
+  readonly impact: Impact;
   readonly score: RiskScore;
 }
 
 export class Risk extends AggregateRoot<RiskId> {
-  private constructor(id: RiskId, private readonly props: RiskProps) {
+  private constructor(id: RiskId, private readonly tenantId: TenantId, private readonly props: RiskProps) {
     super(id);
   }
 
-  /** Raises RiskCalculated (ARCHITECTURE.md §8) — deferred. */
-  static create(_id: RiskId, _props: RiskProps): Risk {
-    throw new NotImplementedError("Risk.create — Phase 3");
+  /** Raises RiskCalculated (ARCHITECTURE.md §8). */
+  static create(id: RiskId, tenantId: TenantId, props: RiskProps): Risk {
+    const risk = new Risk(id, tenantId, props);
+    risk.addDomainEvent(
+      new RiskCalculatedEvent(
+        tenantId,
+        id,
+        props.assetId,
+        props.likelihood.value,
+        props.impact.money.amount,
+        props.score.inherentScore,
+        props.score.residualScore
+      )
+    );
+    return risk;
+  }
+
+  get assetId(): AssetId {
+    return this.props.assetId;
+  }
+
+  get likelihood(): Likelihood {
+    return this.props.likelihood;
+  }
+
+  get impact(): Impact {
+    return this.props.impact;
+  }
+
+  get score(): RiskScore {
+    return this.props.score;
   }
 }
 
 // ---- Repository ----
 
 export interface RiskRepository {
+  list(ctx: TenantContext): Promise<Risk[]>;
   findByAsset(ctx: TenantContext, assetId: AssetId): Promise<Risk[]>;
   findById(ctx: TenantContext, riskId: RiskId): Promise<Risk | null>;
   save(ctx: TenantContext, risk: Risk): Promise<void>;
@@ -119,7 +204,14 @@ export interface RiskRepository {
 
 // ---- Domain Service ----
 
+export interface RiskAssessment {
+  readonly likelihood: Likelihood;
+  readonly impact: Impact;
+  readonly controlEffectiveness: number;
+  readonly score: RiskScore;
+}
+
 export interface RiskScoringService {
   /** Applies control-effectiveness discount to derive Residual Risk (ARCHITECTURE.md §3.5). */
-  scoreAsset(ctx: TenantContext, assetId: AssetId): Promise<RiskScore>;
+  scoreAsset(ctx: TenantContext, assetId: AssetId): Promise<RiskAssessment>;
 }
