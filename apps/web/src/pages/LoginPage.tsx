@@ -65,7 +65,7 @@ export function LoginPage() {
           </div>
           <div className="login-card__art-top">
             <span className="login-card__wordmark">
-              <span className="login-card__mark">K</span> KAIRON
+              <img src="/kairon-logo-dark.png" alt="KAIRON" className="login-card__mark" /> KAIRON
             </span>
             <Link to="/" className="login-card__back">
               Back to website <ArrowRight size={13} strokeWidth={2} />

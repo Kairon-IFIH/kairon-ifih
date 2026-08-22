@@ -124,7 +124,7 @@ export function LandingPage() {
       <header className={"landing-nav" + (scrolled ? " landing-nav--scrolled" : "")}>
         <div className="landing-nav__inner">
           <a href="#top" className="landing-nav__brand">
-            <span className="landing-nav__mark">K</span>
+            <img src="/kairon-logo-light.png" alt="KAIRON" className="landing-nav__mark" />
             <span>KAIRON</span>
           </a>
           <nav className="landing-nav__links">
@@ -290,7 +290,7 @@ export function LandingPage() {
       <footer className="landing-footer">
         <div className="landing-footer__inner">
           <div className="landing-footer__brand">
-            <span className="landing-nav__mark">K</span>
+            <img src="/kairon-logo-dark.png" alt="KAIRON" className="landing-footer__mark" />
             <span>KAIRON</span>
           </div>
           <p className="landing-footer__disclosure">

@@ -85,11 +85,8 @@
 .login-card__mark {
   width: 24px;
   height: 24px;
-  display: grid;
-  place-items: center;
-  background: oklch(1 0 0 / 0.14);
-  border: 1px solid oklch(1 0 0 / 0.2);
   border-radius: 7px;
+  object-fit: cover;
   font-family: var(--font-mono);
   font-size: var(--text-xs);
 }

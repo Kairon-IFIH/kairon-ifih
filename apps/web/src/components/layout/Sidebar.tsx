@@ -39,7 +39,7 @@ export function Sidebar() {
   return (
     <nav className="rail" aria-label="Primary">
       <div className="rail__brand">
-        <span className="rail__mark">K</span>
+        <img src="/kairon-logo-light.png" alt="KAIRON" className="rail__mark" />
         <span className="rail__brand-text">
           <span className="rail__wordmark">KAIRON</span>
           <span className="rail__tagline">Risk Intelligence</span>
