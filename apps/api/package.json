@@ -20,6 +20,7 @@
     "@kairon/risk": "*",
     "@kairon/financial": "*",
     "@kairon/quantum": "*",
+    "@kairon/quantum-scanner": "*",
     "@kairon/audit": "*",
     "@kairon/notification": "*",
     "express": "^4.19.2",

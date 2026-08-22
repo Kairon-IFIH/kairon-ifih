@@ -1,0 +1,70 @@
+.scanner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+}
+
+.scanner__split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: var(--s-5);
+  align-items: start;
+}
+
+@media (max-width: 1080px) {
+  .scanner__split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.scanner__error {
+  margin: var(--s-4) var(--s-6) 0;
+}
+
+.scanner__row--new td {
+  animation: scanner-flash 1.2s var(--ease);
+}
+
+@keyframes scanner-flash {
+  from {
+    background: var(--accent-wash-strong);
+  }
+  to {
+    background: transparent;
+  }
+}
+
+.scanner__band {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-weight: 500;
+  font-size: var(--t-xs);
+}
+
+.scanner__band-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.scanner__hndl {
+  font-size: var(--t-xs);
+  color: var(--ink-secondary);
+}
+
+.scanner__hndl[data-act-now="true"] {
+  color: var(--sev-critical);
+  font-weight: 500;
+}
+
+.scanner__hint {
+  font-size: var(--t-xs);
+  color: var(--ink-muted);
+  margin: calc(-1 * var(--s-2)) 0 var(--s-4);
+}
+
+.scanner__run {
+  width: 100%;
+}

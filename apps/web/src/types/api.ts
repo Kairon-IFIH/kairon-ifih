@@ -123,6 +123,55 @@ export interface TraceabilityEntry {
   control: { id: string; name: string; maturityLevel: number; effectiveness: number };
 }
 
+// ---- quantum scanner ----
+export type CryptoAssetType = "TLS_VERSION" | "CIPHER_SUITE" | "KEY_EXCHANGE" | "CERTIFICATE" | "SIGNATURE" | "HASH_ALGORITHM";
+export type CryptoStrength = "BROKEN" | "WEAK" | "ACCEPTABLE" | "STRONG" | "QUANTUM_SAFE" | "UNKNOWN";
+export type AlgorithmCategory = "CLASSICAL" | "HYBRID_PQC" | "PQC" | "UNKNOWN";
+export type DataSensitivityTier = "TRANSACTION" | "AUTHENTICATION" | "STATIC";
+export type QarsRiskLevel = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+
+export interface CryptoFindingDTO {
+  assetType: CryptoAssetType;
+  algorithm: string;
+  category: AlgorithmCategory;
+  strength: CryptoStrength;
+  keySizeBits?: number;
+  notes?: string;
+  quantumVulnerable: boolean;
+}
+
+export interface ScanResult {
+  id: string;
+  assetId: string;
+  dataSensitivityTier: DataSensitivityTier;
+  scannedAt: string;
+  quantumVulnerable: boolean;
+  weakestStrength: CryptoStrength;
+  hndl: { actNow: boolean; status: string };
+  qars: {
+    score: number;
+    riskLevel: QarsRiskLevel;
+    rubric: {
+      weights: { vulnerableAssets: number; weakAssets: number; hndlActNow: number };
+      ratios: { vulnerableAssetsRatio: number; weakAssetsRatio: number };
+      penalties: { vulnerableAssets: number; weakAssets: number; hndlActNow: number };
+    };
+  };
+  findings: CryptoFindingDTO[];
+}
+
+export interface ScanTelemetry {
+  totalScans: number;
+  scannedAssets: number;
+  unscannedAssets: number;
+  quantumVulnerableAssets: number;
+  averageQarsScore: number;
+  riskLevelCounts: Record<string, number>;
+  actNowCount: number;
+  algorithmCategoryCounts: Record<string, number>;
+  strengthCounts: Record<string, number>;
+}
+
 // ---- audit ----
 export interface AuditEvent {
   id: string;

@@ -47,6 +47,13 @@ import {
 } from "@kairon/quantum";
 import { createAuditModule, createAuditRouter, InMemoryAuditEventRepository, PrismaAuditEventRepository } from "@kairon/audit";
 import {
+  createQuantumScannerModule,
+  createQuantumScannerRouter,
+  InMemoryScanResultRepository,
+  PrismaScanResultRepository,
+  SimulatedCryptoScannerService,
+} from "@kairon/quantum-scanner";
+import {
   createNotificationModule,
   createNotificationRouter,
   InMemoryNotificationRepository,
@@ -150,6 +157,14 @@ async function createApp() {
   const auditEventRepository = prisma ? new PrismaAuditEventRepository(prisma) : new InMemoryAuditEventRepository();
   const audit = createAuditModule({ auditEventRepository });
 
+  const scanResultRepository = prisma ? new PrismaScanResultRepository(prisma) : new InMemoryScanResultRepository();
+  const quantumScanner = createQuantumScannerModule({
+    scanResultRepository,
+    assetRepository,
+    cryptoScannerService: new SimulatedCryptoScannerService(),
+    eventPublisher,
+  });
+
   // Cross-cutting: every domain event, from every context, reaches Audit (ARCHITECTURE.md §8).
   eventPublisher.subscribe("*", (envelope) => audit.recordAuditEvent.execute(envelope).then(() => undefined));
 
@@ -209,6 +224,42 @@ async function createApp() {
   authenticated.use(createQuantumRouter(quantum));
   authenticated.use(createAuditRouter(audit));
   authenticated.use(createNotificationRouter(notification));
+  authenticated.use(createQuantumScannerRouter(quantumScanner));
+
+  authenticated.post("/ai/overview", express.json(), async (req, res, next) => {
+    try {
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        res.status(503).json({ success: false, message: "AI overview is not configured", errors: [] });
+        return;
+      }
+      const metrics = req.body?.metrics ?? {};
+      const prompt = `You are a risk analyst for a financial institution. Based on this JSON snapshot of the institution's risk platform, write a short executive overview (3-5 sentences) summarizing the current risk posture, then a "Recommended actions" list of 3 concise bullet points on what to do next. Be direct and specific to the numbers given, not generic advice.\n\nData:\n${JSON.stringify(metrics)}`;
+
+      const geminiRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+        }
+      );
+      if (!geminiRes.ok) {
+        const errText = await geminiRes.text();
+        log.error("gemini request failed", { status: geminiRes.status, errText });
+        res.status(502).json({ success: false, message: "AI provider error", errors: [] });
+        return;
+      }
+      const geminiBody = (await geminiRes.json()) as {
+        candidates?: { content?: { parts?: { text?: string }[] } }[];
+      };
+      const text = geminiBody.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+      res.status(200).json({ success: true, data: { text }, message: "OK" });
+    } catch (err) {
+      next(err);
+    }
+  });
+
   app.use("/api/v1", authenticated);
 
   app.use(errorHandlerMiddleware());

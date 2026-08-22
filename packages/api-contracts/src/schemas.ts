@@ -91,6 +91,19 @@ export const createOptimizationJobSchema = z.object({
 });
 export type CreateOptimizationJobRequest = z.infer<typeof createOptimizationJobSchema>;
 
+// ---- quantum scanner ----
+export const runCryptoScanSchema = z.object({
+  assetId: z.string().uuid(),
+  dataSensitivityTier: z.enum(["TRANSACTION", "AUTHENTICATION", "STATIC"]).default("TRANSACTION"),
+});
+export type RunCryptoScanRequest = z.infer<typeof runCryptoScanSchema>;
+
+export const listScanResultsQuerySchema = paginationQuerySchema.extend({
+  assetId: z.string().uuid().optional(),
+  riskLevel: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]).optional(),
+});
+export type ListScanResultsQuery = z.infer<typeof listScanResultsQuerySchema>;
+
 // ---- audit ----
 export const listAuditEventsQuerySchema = paginationQuerySchema.extend({
   entityType: z.string().optional(),

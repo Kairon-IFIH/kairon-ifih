@@ -1,0 +1,83 @@
+.crypto-terrain {
+  position: relative;
+  width: 100%;
+}
+
+.crypto-terrain__svg {
+  display: block;
+}
+
+.crypto-terrain__grid {
+  stroke: var(--rule);
+  stroke-width: 1;
+}
+
+.crypto-terrain__base {
+  stroke: var(--rule-strong);
+  stroke-width: 1;
+}
+
+.crypto-terrain__xtick {
+  font-family: var(--font-ui);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  fill: var(--ink-faint);
+}
+
+.crypto-terrain__peak {
+  fill-opacity: 0.5;
+  transition: fill-opacity var(--dur-fast) var(--ease);
+}
+
+.crypto-terrain__peak[data-dim="true"] {
+  fill-opacity: 0.16;
+}
+
+.crypto-terrain__peak[data-focus="true"] {
+  fill-opacity: 0.88;
+}
+
+.crypto-terrain__tip {
+  position: absolute;
+  transform: translateX(-50%);
+  background: var(--surface-raised);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--r-sm);
+  box-shadow: var(--lift-md);
+  padding: var(--s-3) var(--s-4);
+  min-width: 206px;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.crypto-terrain__tip-name {
+  font-family: var(--font-display);
+  font-size: var(--t-sm);
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: var(--s-2);
+}
+
+.crypto-terrain__tip-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.crypto-terrain__tip-rows > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-4);
+  font-size: var(--t-xs);
+}
+
+.crypto-terrain__tip-rows dt {
+  color: var(--ink-muted);
+}
+
+.crypto-terrain__tip-rows dd {
+  font-weight: 500;
+  color: var(--ink);
+}

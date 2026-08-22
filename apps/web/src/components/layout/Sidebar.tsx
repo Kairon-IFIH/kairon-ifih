@@ -16,21 +16,25 @@ const GROUPS = [
     items: [{ to: "/assets", label: "Assets", index: "01" }],
   },
   {
+    label: "Detection",
+    items: [{ to: "/scanner", label: "Quantum scanner", index: "02" }],
+  },
+  {
     label: "Analysis",
     items: [
-      { to: "/risks", label: "Risk engine", index: "02" },
-      { to: "/financial", label: "Quantification", index: "03" },
+      { to: "/risks", label: "Risk engine", index: "03" },
+      { to: "/financial", label: "Quantification", index: "04" },
     ],
   },
   {
     label: "Decision",
-    items: [{ to: "/optimization", label: "Optimizer", index: "04" }],
+    items: [{ to: "/optimization", label: "Optimizer", index: "05" }],
   },
   {
     label: "Assurance",
     items: [
-      { to: "/compliance", label: "Regulatory", index: "05" },
-      { to: "/audit", label: "Audit trail", index: "06" },
+      { to: "/compliance", label: "Regulatory", index: "06" },
+      { to: "/audit", label: "Audit trail", index: "07" },
     ],
   },
 ];

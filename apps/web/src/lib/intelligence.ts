@@ -17,12 +17,17 @@
  */
 
 import type {
+  AlgorithmCategory,
   Asset,
   AuditEvent,
   ComplianceMapping,
   CriticalityLevel,
+  CryptoAssetType,
+  CryptoStrength,
+  QarsRiskLevel,
   Risk,
   RiskLevel,
+  ScanResult,
 } from "../types/api";
 
 /* ------------------------------------------------------------------ *
@@ -687,4 +692,106 @@ export function buildFrontier(
   }
 
   return points;
+}
+
+/* ------------------------------------------------------------------ *
+ * quantum scanner — crypto exposure telemetry
+ * ------------------------------------------------------------------ */
+
+export const QARS_RISK_LEVELS: QarsRiskLevel[] = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
+
+/** QARS shares KAIRON's one 4-band severity vocabulary (LOW/MEDIUM/HIGH/CRITICAL) end to end. */
+export const QARS_LEVEL_VAR = SEVERITY_VAR;
+
+export const STRENGTH_ORDER: CryptoStrength[] = ["BROKEN", "WEAK", "UNKNOWN", "ACCEPTABLE", "STRONG", "QUANTUM_SAFE"];
+
+/** A crypto STRENGTH band is its own severity scale, reusing the sequential
+ * indigo ramp for "distance from quantum-safe" rather than the categorical
+ * severity colours — strength is an ordinal magnitude, not an identity. */
+export function strengthRampColor(strength: CryptoStrength): string {
+  const i = STRENGTH_ORDER.indexOf(strength);
+  if (i < 0) return INDIGO_RAMP[0];
+  // BROKEN/WEAK read as danger (severity red/orange); ACCEPTABLE and up read
+  // on the indigo ramp — the two ends of the QARS story are different colours
+  // for a reason: "broken now" is a severity fact, "how quantum-ready" is a
+  // magnitude fact.
+  if (strength === "BROKEN") return "var(--sev-critical)";
+  if (strength === "WEAK") return "var(--sev-high)";
+  if (strength === "UNKNOWN") return "var(--ink-faint)";
+  if (strength === "ACCEPTABLE") return INDIGO_RAMP[2];
+  if (strength === "STRONG") return INDIGO_RAMP[4];
+  return "var(--sev-low)"; // QUANTUM_SAFE
+}
+
+export const CRYPTO_ASSET_TYPE_LABEL: Record<CryptoAssetType, string> = {
+  TLS_VERSION: "TLS version",
+  CIPHER_SUITE: "Cipher suite",
+  KEY_EXCHANGE: "Key exchange",
+  CERTIFICATE: "Certificate",
+  SIGNATURE: "Signature",
+  HASH_ALGORITHM: "Hash algorithm",
+};
+
+export const ALGORITHM_CATEGORY_LABEL: Record<AlgorithmCategory, string> = {
+  CLASSICAL: "Classical",
+  HYBRID_PQC: "Hybrid PQC",
+  PQC: "Post-quantum",
+  UNKNOWN: "Unknown",
+};
+
+export interface CryptoInventoryRow {
+  assetType: CryptoAssetType;
+  label: string;
+  cellsByStrength: { strength: CryptoStrength; count: number }[];
+  total: number;
+}
+
+/**
+ * Cryptographic Bill of Materials, aggregated as asset-type x strength-band —
+ * the same shape the reference scanner's CBOM report table takes, redrawn as
+ * a heat matrix. Every count comes from findings inside real ScanResults;
+ * an asset type with zero findings across the whole estate is simply absent
+ * from the matrix rather than padded in as a zero row.
+ */
+export function buildCryptoInventory(scans: ScanResult[]): CryptoInventoryRow[] {
+  const byType = new Map<CryptoAssetType, Map<CryptoStrength, number>>();
+
+  for (const scan of scans) {
+    for (const finding of scan.findings) {
+      const strengths = byType.get(finding.assetType) ?? new Map<CryptoStrength, number>();
+      strengths.set(finding.strength, (strengths.get(finding.strength) ?? 0) + 1);
+      byType.set(finding.assetType, strengths);
+    }
+  }
+
+  const rows: CryptoInventoryRow[] = [];
+  for (const [assetType, strengths] of byType) {
+    const cellsByStrength = STRENGTH_ORDER.map((strength) => ({ strength, count: strengths.get(strength) ?? 0 }));
+    rows.push({
+      assetType,
+      label: CRYPTO_ASSET_TYPE_LABEL[assetType],
+      cellsByStrength,
+      total: cellsByStrength.reduce((sum, c) => sum + c.count, 0),
+    });
+  }
+
+  // Fixed display order (protocol -> primitive), not insertion order.
+  const order: CryptoAssetType[] = ["TLS_VERSION", "CIPHER_SUITE", "KEY_EXCHANGE", "CERTIFICATE", "SIGNATURE", "HASH_ALGORITHM"];
+  return rows.sort((a, b) => order.indexOf(a.assetType) - order.indexOf(b.assetType));
+}
+
+export interface ExposurePeak {
+  scan: ScanResult;
+  assetName: string;
+}
+
+/**
+ * Orders scan results worst-QARS-first for the exposure terrain — the same
+ * "sorted by what matters most, read left to right" convention RiskTopography
+ * uses, just walking the QARS score (low = dangerous) instead of ₹ exposure.
+ */
+export function buildScanExposureOrder(scans: ScanResult[], assetNames: Map<string, string>): ExposurePeak[] {
+  return [...scans]
+    .sort((a, b) => a.qars.score - b.qars.score)
+    .map((scan) => ({ scan, assetName: assetNames.get(scan.assetId) ?? "Unknown asset" }));
 }

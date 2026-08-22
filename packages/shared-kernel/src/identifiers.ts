@@ -32,6 +32,9 @@ export type OptimizationResultId = Brand<string, "OptimizationResultId">;
 export type AuditEventId = Brand<string, "AuditEventId">;
 export type NotificationId = Brand<string, "NotificationId">;
 
+export type CryptoScanResultId = Brand<string, "CryptoScanResultId">;
+export type CryptoAssetId = Brand<string, "CryptoAssetId">;
+
 const brand =
   <T extends string>() =>
   (id: string): Brand<string, T> =>
@@ -64,3 +67,6 @@ export const asOptimizationResultId = brand<"OptimizationResultId">();
 
 export const asAuditEventId = brand<"AuditEventId">();
 export const asNotificationId = brand<"NotificationId">();
+
+export const asCryptoScanResultId = brand<"CryptoScanResultId">();
+export const asCryptoAssetId = brand<"CryptoAssetId">();

@@ -7,12 +7,15 @@ import type {
   CriticalityLevel,
   CurrencyCode,
   DataClassificationLevel,
+  DataSensitivityTier,
   FinancialExposure,
   Notification,
   OptimizationJob,
   Paginated,
   QRisk,
   Risk,
+  ScanResult,
+  ScanTelemetry,
   TraceabilityEntry,
 } from "../types/api";
 
@@ -67,6 +70,19 @@ export const mapAssetToControl = (input: { assetId: string; controlId: string })
 
 export const getAssetTraceability = (assetId: string) =>
   apiRequest<TraceabilityEntry[]>(`/compliance/assets/${assetId}/traceability`);
+
+// ---- ai overview ----
+export const getAiOverview = (metrics: Record<string, unknown>) =>
+  apiRequest<{ text: string }>("/ai/overview", { method: "POST", body: { metrics } });
+
+// ---- quantum scanner ----
+export const runCryptoScan = (assetId: string, dataSensitivityTier: DataSensitivityTier = "TRANSACTION") =>
+  apiRequest<ScanResult>("/scanner/scans", { method: "POST", body: { assetId, dataSensitivityTier } });
+
+export const listScanResults = (page = 1, pageSize = 20, assetId?: string) =>
+  apiRequest<Paginated<ScanResult>>("/scanner/scans", { query: { page, pageSize, assetId } });
+
+export const getScanTelemetry = () => apiRequest<ScanTelemetry>("/scanner/telemetry");
 
 // ---- audit ----
 export const listAuditEvents = (

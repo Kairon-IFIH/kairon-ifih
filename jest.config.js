@@ -15,6 +15,7 @@ module.exports = {
     "^@kairon/risk$": "<rootDir>/packages/risk/src/index.ts",
     "^@kairon/financial$": "<rootDir>/packages/financial/src/index.ts",
     "^@kairon/quantum$": "<rootDir>/packages/quantum/src/index.ts",
+    "^@kairon/quantum-scanner$": "<rootDir>/packages/quantum-scanner/src/index.ts",
     "^@kairon/audit$": "<rootDir>/packages/audit/src/index.ts",
     "^@kairon/notification$": "<rootDir>/packages/notification/src/index.ts"
   },

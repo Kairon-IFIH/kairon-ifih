@@ -1,0 +1,109 @@
+.crypto-matrix {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.crypto-matrix__table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 2px;
+}
+
+.crypto-matrix__corner {
+  width: 148px;
+}
+
+.crypto-matrix__col-head {
+  font-family: var(--font-ui);
+  font-size: var(--t-micro);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  text-align: center;
+  padding-bottom: var(--s-2);
+  white-space: nowrap;
+}
+
+.crypto-matrix__row-head {
+  font-family: var(--font-mono);
+  font-size: var(--t-xs);
+  font-weight: 500;
+  color: var(--ink-secondary);
+  text-align: left;
+  white-space: nowrap;
+  padding-right: var(--s-4);
+}
+
+.crypto-matrix__row-head em {
+  display: block;
+  font-family: var(--font-ui);
+  font-style: normal;
+  font-size: var(--t-micro);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-top: 1px;
+}
+
+.crypto-matrix__cell {
+  position: relative;
+  padding: 0;
+}
+
+.crypto-matrix__swatch {
+  height: 42px;
+  border-radius: var(--r-xs);
+  display: grid;
+  place-items: center;
+  background: var(--surface-sunken);
+  transition: transform var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+
+.crypto-matrix__swatch span {
+  font-size: var(--t-xs);
+  font-weight: 500;
+  color: var(--ink-secondary);
+}
+
+.crypto-matrix__swatch span[data-dark="true"] {
+  color: var(--surface);
+}
+
+.crypto-matrix__swatch[data-empty="true"] span {
+  color: var(--ink-faint);
+}
+
+.crypto-matrix__swatch[data-focus="true"] {
+  box-shadow: 0 0 0 2px var(--ink);
+}
+
+.crypto-matrix__tip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  transform: translateX(-50%);
+  background: var(--surface-raised);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--r-sm);
+  box-shadow: var(--lift-md);
+  padding: var(--s-2) var(--s-3);
+  white-space: nowrap;
+  font-size: var(--t-xs);
+  color: var(--ink-secondary);
+  z-index: 4;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.crypto-matrix__tip b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.crypto-matrix__tip .num {
+  font-size: var(--t-micro);
+  color: var(--ink-muted);
+}

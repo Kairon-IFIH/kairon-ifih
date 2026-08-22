@@ -1,0 +1,20 @@
+{
+  "name": "@kairon/quantum-scanner",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@kairon/shared-kernel": "*",
+    "@kairon/event-contracts": "*",
+    "@kairon/api-contracts": "*",
+    "@kairon/asset": "*",
+    "@kairon/logger": "*",
+    "express": "^4.19.2",
+    "@prisma/client": "6.19.3"
+  }
+}

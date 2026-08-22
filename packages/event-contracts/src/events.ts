@@ -1,6 +1,7 @@
 import type {
   AssetId,
   ControlId,
+  CryptoScanResultId,
   OptimizationJobId,
   RiskId,
   TenantId,
@@ -15,7 +16,8 @@ export type DomainEventName =
   | "FinancialExposureQuantified"
   | "RemediationGenerated"
   | "OptimizationExecuted"
-  | "RemediationApproved";
+  | "RemediationApproved"
+  | "CryptoScanCompleted";
 
 export interface AssetDiscoveredPayload {
   tenantId: TenantId;
@@ -90,6 +92,17 @@ export interface RemediationApprovedPayload {
   timestamp: string;
 }
 
+export interface CryptoScanCompletedPayload {
+  tenantId: TenantId;
+  scanResultId: CryptoScanResultId;
+  assetId: AssetId;
+  qarsScore: number;
+  riskLevel: string;
+  quantumVulnerable: boolean;
+  hndlStatus: string;
+  timestamp: string;
+}
+
 export interface DomainEventEnvelope<
   TName extends DomainEventName = DomainEventName,
   TPayload = unknown
@@ -108,4 +121,5 @@ export type AnyDomainEventEnvelope =
   | DomainEventEnvelope<"FinancialExposureQuantified", FinancialExposureQuantifiedPayload>
   | DomainEventEnvelope<"RemediationGenerated", RemediationGeneratedPayload>
   | DomainEventEnvelope<"OptimizationExecuted", OptimizationExecutedPayload>
-  | DomainEventEnvelope<"RemediationApproved", RemediationApprovedPayload>;
+  | DomainEventEnvelope<"RemediationApproved", RemediationApprovedPayload>
+  | DomainEventEnvelope<"CryptoScanCompleted", CryptoScanCompletedPayload>;

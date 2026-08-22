@@ -10,6 +10,7 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { AssetsPage } from "./pages/AssetsPage";
 import { AssetDetailPage } from "./pages/AssetDetailPage";
 import { RisksPage } from "./pages/RisksPage";
+import { ScannerPage } from "./pages/ScannerPage";
 import { FinancialPage } from "./pages/FinancialPage";
 import { OptimizationPage } from "./pages/OptimizationPage";
 import { CompliancePage } from "./pages/CompliancePage";
@@ -54,6 +55,14 @@ export default function App() {
               element={
                 <Shell title="Asset Intelligence" subtitle="The institution's digital surface, grouped by where exposure actually concentrates.">
                   <AssetDetailPage />
+                </Shell>
+              }
+            />
+            <Route
+              path="/scanner"
+              element={
+                <Shell title="Quantum Scanner" subtitle="Every cryptographic primitive in use across the estate, graded for post-quantum readiness.">
+                  <ScannerPage />
                 </Shell>
               }
             />

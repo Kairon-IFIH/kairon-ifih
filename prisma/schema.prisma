@@ -94,8 +94,9 @@ model Asset {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  risks     Risk[]
-  exposures FinancialExposure[]
+  risks       Risk[]
+  exposures   FinancialExposure[]
+  cryptoScans CryptoScanResult[]
 
   @@index([tenantId])
   @@index([tenantId, criticalityLevel])
@@ -282,12 +283,35 @@ model Notification {
 }
 
 // =========================================================
+// Quantum Cryptography Exposure Scanning (reference/QShield-scanner-reference)
+// =========================================================
+
+model CryptoScanResult {
+  id                 String   @id @default(uuid())
+  tenantId           String
+  assetId            String
+  asset              Asset    @relation(fields: [assetId], references: [id])
+  dataSensitivityTier String  // TRANSACTION | AUTHENTICATION | STATIC
+  findings           Json     // CryptoFinding[] as [{assetType, algorithm, category, strength, keySizeBits?, notes?}]
+  hndlActNow         Boolean
+  hndlSafeUntilYear  Int?
+  qarsScore          Float
+  qarsRiskLevel      String   // LOW | MEDIUM | HIGH | CRITICAL
+  qarsRubric         Json
+  scannedAt          DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([tenantId, assetId])
+  @@map("crypto_scan_results")
+}
+
+// =========================================================
 // Future phases — not created now (schema documented here for continuity;
 // see docs/IMPLEMENTATION_ROADMAP.md Phase 6). No models below this line.
 // - RemediationAction (standalone catalog, currently embedded as Json on
 //   OptimizationJob.candidateActions)
 // - Evidence as a first-class table (currently Json on ComplianceMapping)
 // - InsurancePolicy / UnderwritingProfile (Insurance Intelligence layer)
-// - CryptographicAsset / PqcMigrationTask (Quantum Readiness / PQC module)
+// - PqcMigrationTask (remediation tracking for CryptoScanResult findings)
 // - RefreshTokenRevocation (reuse-detection hardening, ARCHITECTURE.md §9)
 // =========================================================

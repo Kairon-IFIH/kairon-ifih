@@ -14,6 +14,7 @@ import {
   listAuditEvents,
   listNotifications,
   runGapAnalysis,
+  getAiOverview,
 } from "../lib/endpoints";
 import { formatCompactINR } from "../lib/format";
 import {
@@ -38,6 +39,9 @@ interface Loaded {
 export function DashboardPage() {
   const [data, setData] = useState<Loaded | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [aiText, setAiText] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -295,6 +299,53 @@ export function DashboardPage() {
           )}
         </Panel>
       </div>
+
+      <Panel
+        eyebrow="AI overview"
+        title="What to do next"
+        caption="Generated on demand by Gemini from the metrics currently on this screen."
+      >
+        {aiText ? (
+          <div className="dash__ai-text">
+            {aiText.split("\n").filter(Boolean).map((line, i) => (
+              <p key={i}>{line}</p>
+            ))}
+          </div>
+        ) : (
+          <EmptyState>
+            {aiError ?? "No overview generated yet — click below to have Gemini summarize the current risk posture."}
+          </EmptyState>
+        )}
+        <button
+          type="button"
+          className="form-button dash__ai-button"
+          disabled={aiLoading}
+          onClick={async () => {
+            setAiLoading(true);
+            setAiError(null);
+            try {
+              const { text } = await getAiOverview({
+                qRisk: data.qRisk,
+                residualExposure: derived.residualPool,
+                inherentExposure: derived.inherentPool,
+                regulatoryHealthPercent: derived.regulatoryHealth,
+                attentionIndex: derived.attention,
+                assetsTotal: data.assets.length,
+                risksScored: data.risks.length,
+                complianceGaps: derived.gaps,
+                compliancePartial: derived.partial,
+              });
+              setAiText(text);
+            } catch {
+              setAiError("Couldn't generate an overview right now.");
+            } finally {
+              setAiLoading(false);
+            }
+          }}
+        >
+          {aiLoading ? "Generating…" : aiText ? "Regenerate" : "Generate overview"}
+        </button>
+      </Panel>
     </div>
   );
 }

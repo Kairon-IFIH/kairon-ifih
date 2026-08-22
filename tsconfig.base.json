@@ -23,6 +23,7 @@
       "@kairon/risk": ["packages/risk/src/index.ts"],
       "@kairon/financial": ["packages/financial/src/index.ts"],
       "@kairon/quantum": ["packages/quantum/src/index.ts"],
+      "@kairon/quantum-scanner": ["packages/quantum-scanner/src/index.ts"],
       "@kairon/audit": ["packages/audit/src/index.ts"],
       "@kairon/notification": ["packages/notification/src/index.ts"]
     }

@@ -13,6 +13,7 @@ export enum QueueName {
   FinancialEvents = "financial-events",
   OptimizationJobs = "optimization-jobs",
   Notifications = "notifications",
+  QuantumScannerEvents = "quantum-scanner-events",
 }
 
 export const EVENT_QUEUE_MAP: Record<DomainEventName, QueueName> = {
@@ -24,6 +25,7 @@ export const EVENT_QUEUE_MAP: Record<DomainEventName, QueueName> = {
   RemediationGenerated: QueueName.OptimizationJobs,
   OptimizationExecuted: QueueName.OptimizationJobs,
   RemediationApproved: QueueName.Notifications,
+  CryptoScanCompleted: QueueName.QuantumScannerEvents,
 };
 
 export const ALL_QUEUES: QueueName[] = Object.values(QueueName);
