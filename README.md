@@ -1,54 +1,178 @@
-# KAIRON — Repository Structure
+<div align="center">
 
-This is a scaffold, generated from `docs/ARCHITECTURE.md`. It defines packages, bounded-context
-modules, and interfaces. **No business logic is implemented yet.**
+# ⚡ KAIRON
 
-See `docs/IMPLEMENTATION_ROADMAP.md` for the file-by-file build order.
+### Quantum-Powered Financial Risk Intelligence Platform
 
-## Layout
+*Continuously discover assets · Quantify cyber exposure in financial terms · Optimize remediation through quantum-enhanced decision making*
+
+---
+
+![TypeScript](https://img.shields.io/badge/TypeScript-5.5-3178C6?style=flat-square&logo=typescript&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-20-339933?style=flat-square&logo=nodedotjs&logoColor=white)
+![Prisma](https://img.shields.io/badge/Prisma-6-2D3748?style=flat-square&logo=prisma&logoColor=white)
+![BullMQ](https://img.shields.io/badge/BullMQ-Queue-E44C29?style=flat-square)
+![License](https://img.shields.io/badge/License-Private-red?style=flat-square)
+![Status](https://img.shields.io/badge/Status-Scaffold-yellow?style=flat-square)
+
+</div>
+
+---
+
+## 🧭 Overview
+
+**KAIRON** is a next-generation Financial Risk Intelligence Platform built for financial institutions that need to answer one critical executive question:
+
+> *"Given limited capital, limited manpower, and increasing regulatory obligations — where should we invest next to achieve the greatest reduction in financial risk?"*
+
+Existing GRC, SIEM, and vulnerability management platforms answer **what exists** and **what is vulnerable**. KAIRON answers **what to do about it, in what order, and at what cost**.
+
+> **Note:** This repository is a scaffold generated from [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md). All bounded-context packages, interfaces, and dependency graphs are real. Business logic is not implemented yet — see [`docs/IMPLEMENTATION_ROADMAP.md`](./docs/IMPLEMENTATION_ROADMAP.md) for the phased build order.
+
+---
+
+## 🗂️ Repository Layout
 
 ```
-docs/                       architecture + product source-of-truth docs
-packages/
-  shared-kernel/            Entity/AggregateRoot/ValueObject/DomainEvent base classes, Result, Money, TenantContext, branded IDs, domain errors
-  event-contracts/          Domain event payload types + queue name mapping (BullMQ)
-  api-contracts/            Response envelope, pagination, Zod request/query schemas
-  identity/                 Bounded context: Tenant, Organization, Department, User, Role, Auth
-  asset/                    Bounded context: Asset, AssetOwner, BusinessService
-  compliance/               Bounded context: Framework, Regulation, Control, Requirement, ComplianceMapping
-  risk/                     Bounded context: Risk, RiskFactor, RiskScore
-  financial/                Bounded context: FinancialExposure, ExpectedLoss, RemediationCost, Q-Risk
-  quantum/                  Bounded context: OptimizationJob, OptimizationConstraint, OptimizationResult
-  audit/                    Bounded context: AuditEvent (append-only)
-  notification/             Bounded context: Notification (HITL / job-complete alerts)
-apps/
-  api/                      Express composition root (HTTP)
-  worker/                   BullMQ consumer composition root
-  quantum-runner/           Python/Qiskit-PennyLane sidecar (separate runtime, contract only)
+kairon-ifih/
+├── apps/
+│   ├── api/                  Express composition root (HTTP layer)
+│   ├── worker/               BullMQ consumer composition root
+│   └── quantum-runner/       Python / Qiskit-PennyLane sidecar (separate runtime)
+│
+├── packages/
+│   ├── shared-kernel/        Entity, AggregateRoot, ValueObject, DomainEvent bases
+│   │                         Result<T>, Money, TenantContext, branded IDs, domain errors
+│   ├── event-contracts/      Domain event payload types + BullMQ queue name mapping
+│   ├── api-contracts/        Response envelope, pagination, Zod request/query schemas
+│   │
+│   ├── identity/             Bounded context: Tenant, Organization, Department, User, Role, Auth
+│   ├── asset/                Bounded context: Asset, AssetOwner, BusinessService
+│   ├── compliance/           Bounded context: Framework, Regulation, Control, Requirement
+│   ├── risk/                 Bounded context: Risk, RiskFactor, RiskScore
+│   ├── financial/            Bounded context: FinancialExposure, ExpectedLoss, RemediationCost, Q-Risk
+│   ├── quantum/              Bounded context: OptimizationJob, Constraint, OptimizationResult
+│   ├── audit/                Bounded context: AuditEvent (append-only, no update/delete)
+│   ├── notification/         Bounded context: Notification (HITL / job-complete alerts)
+│   └── logger/               Shared structured logger
+│
+├── prisma/                   Schema, migrations, seed
+├── docs/                     Architecture, roadmap, backend spec, deployment guides
+├── infra/                    Infrastructure-as-code
+├── docker-compose.yml        Local development stack
+└── docker-compose.prod.yml   Production stack
 ```
 
-## Running it right now
+---
 
-`npm install`, then `npm run typecheck --workspaces` (all 13 packages pass clean), then
-`npm run dev --workspace @kairon/api`. The server boots and every route responds with a
-correctly typed `{success:false,message:"Not implemented: ...",errors:[]}` — the whole
-request pipeline (Zod validation → auth middleware → tenant-context middleware → use case
-→ centralized error handler) already works end to end; only the behavior inside each
-`NotImplementedError` throw is missing. `tsconfig.base.json` sets `noEmit: true` for now —
-`tsx` is what actually runs the apps in dev; wiring a real `tsc`/project-references build
-for `dist/` output is a Phase 2 tooling decision, not an architectural one.
+## 🚀 Quickstart
 
-## Conventions used throughout this scaffold
+### Prerequisites
 
-- Each bounded-context package follows Clean Architecture: `domain.ts` → `application.ts` → `infrastructure.ts` → `presentation.ts`. Dependencies only point inward (presentation/infrastructure depend on domain; domain depends on nothing outside `shared-kernel`/`event-contracts`).
-- Every entity/value object exposes a `static create(...)` factory. In this scaffold, factories and every domain-service/use-case method body throw `NotImplementedError('<what>, see ARCHITECTURE.md §<section>, Phase <n>')` rather than containing logic — the shape and dependency graph are real, the behavior is not.
-- Repository interfaces live in `domain.ts`; their Prisma-backed implementations live in `infrastructure.ts` as stub classes (no live Prisma calls yet).
-- `AuditEventRepository` intentionally exposes no `update`/`delete` methods — this is structural, not a convention to remember.
-- All tenant-scoped repository methods take a `TenantContext` (from `@kairon/shared-kernel`) as their first parameter — never optional.
+- **Node.js** ≥ 20
+- **npm** ≥ 10
+- **Docker** (for local Postgres + Redis via `docker-compose`)
 
-## Contributors
+### 1. Install dependencies
 
-Thanks to everyone who has contributed to this project:
+```bash
+npm install
+```
 
-- [R0h1tAnand](https://github.com/R0h1tAnand) — Architecture, domain modelling, infrastructure scaffolding
-- [sanaysarthak](https://github.com/sanaysarthak) — Architecture review, bounded-context design
+### 2. Verify the type graph
+
+```bash
+npm run typecheck --workspaces
+# All 13 packages pass clean — no errors expected
+```
+
+### 3. Start the API
+
+```bash
+npm run dev --workspace @kairon/api
+```
+
+The server boots immediately. Every route returns a correctly typed response:
+
+```json
+{
+  "success": false,
+  "message": "Not implemented: <use-case>, see ARCHITECTURE.md §<section>, Phase <n>",
+  "errors": []
+}
+```
+
+The full request pipeline — **Zod validation → auth middleware → tenant-context middleware → use case → centralized error handler** — is wired end-to-end. Only the behavior inside each use case is pending.
+
+### 4. Database (when implementing a context)
+
+```bash
+docker-compose up -d          # Start Postgres + Redis
+npm run db:generate           # Generate Prisma client
+npm run db:migrate            # Run migrations (dev)
+npm run seed                  # Optional: seed reference data
+```
+
+---
+
+## 🏛️ Architecture Conventions
+
+This scaffold enforces a strict **Clean Architecture** with unidirectional dependencies:
+
+```
+presentation.ts
+    └── application.ts
+            └── domain.ts
+                    └── @kairon/shared-kernel
+                    └── @kairon/event-contracts
+```
+
+| Convention | Details |
+|---|---|
+| **Factory pattern** | Every entity and value object exposes a `static create(...)` factory. No `new Entity()` at call sites. |
+| **NotImplementedError** | All use-case and factory method bodies throw `NotImplementedError(...)` in this scaffold phase. Shape is real; behavior is not. |
+| **Repository interfaces** | Defined in `domain.ts`. Prisma-backed stub implementations live in `infrastructure.ts`. No live Prisma calls yet. |
+| **Append-only audit log** | `AuditEventRepository` intentionally has no `update` or `delete` methods. This is structural, not an oversight. |
+| **TenantContext** | Every tenant-scoped repository method takes `TenantContext` (from `@kairon/shared-kernel`) as its **first, non-optional** parameter. |
+| **Build tooling** | `tsconfig.base.json` sets `noEmit: true`. `tsx` runs apps in dev. A real `tsc`/project-references build for `dist/` is a Phase 2 tooling decision. |
+
+---
+
+## 📚 Documentation
+
+| Document | Description |
+|---|---|
+| [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) | Full domain model, bounded contexts, dependency rules |
+| [`docs/IMPLEMENTATION_ROADMAP.md`](./docs/IMPLEMENTATION_ROADMAP.md) | File-by-file phased build order |
+| [`docs/BACKEND.md`](./docs/BACKEND.md) | Backend API spec and middleware design |
+| [`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md) | Production deployment guide |
+| [`docs/IDEA.md`](./docs/IDEA.md) | Product vision, problem framing, market context |
+
+---
+
+## 👥 Contributors
+
+<table>
+  <tr>
+    <td align="center">
+      <a href="https://github.com/R0h1tAnand">
+        <img src="https://github.com/R0h1tAnand.png" width="80px" style="border-radius:50%" alt="R0h1tAnand"/><br/>
+        <sub><b>Rohit Anand</b></sub>
+      </a><br/>
+      <sub>Architecture · Domain Modelling · Infrastructure</sub>
+    </td>
+    <td align="center">
+      <a href="https://github.com/sanaysarthak">
+        <img src="https://github.com/sanaysarthak.png" width="80px" style="border-radius:50%" alt="sanaysarthak"/><br/>
+        <sub><b>Sarthak Sanay</b></sub>
+      </a><br/>
+      <sub>Architecture Review · Bounded-Context Design</sub>
+    </td>
+  </tr>
+</table>
+
+---
+
+<div align="center">
+  <sub>Built with precision. Designed for scale. Powered by quantum.</sub>
+</div>
