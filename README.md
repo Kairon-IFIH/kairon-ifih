@@ -45,3 +45,10 @@ for `dist/` output is a Phase 2 tooling decision, not an architectural one.
 - Repository interfaces live in `domain.ts`; their Prisma-backed implementations live in `infrastructure.ts` as stub classes (no live Prisma calls yet).
 - `AuditEventRepository` intentionally exposes no `update`/`delete` methods — this is structural, not a convention to remember.
 - All tenant-scoped repository methods take a `TenantContext` (from `@kairon/shared-kernel`) as their first parameter — never optional.
+
+## Contributors
+
+Thanks to everyone who has contributed to this project:
+
+- [R0h1tAnand](https://github.com/R0h1tAnand) — Architecture, domain modelling, infrastructure scaffolding
+- [sanaysarthak](https://github.com/sanaysarthak) — Architecture review, bounded-context design
